@@ -1,16 +1,5 @@
 # IoT System for Disease Detection in Crops
 
-**Final Year Project — Bachelor of Science in Software Engineering**
-
-| Field | Details |
-|-------|---------|
-| Institution | [Your Institution Name] |
-| Academic Year | 2025 / 2026 |
-| Student | [Your Full Name] |
-| Student ID | [Your Student ID] |
-| Supervisor | [Supervisor Name] |
-| Submission Date | [Submission Date] |
-
 ---
 
 ## Table of Contents
