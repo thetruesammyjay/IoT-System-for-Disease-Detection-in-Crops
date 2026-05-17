@@ -1,4 +1,4 @@
-# IoT System for Disease Detection in Crops
+# Kaizen Model using Edge Computing for Tomato Disease Detection
 
 ---
 
@@ -29,37 +29,34 @@
 
 ## 1. Project Overview
 
-This project presents the design and full-stack implementation of an Internet of Things (IoT) system for the automated detection of diseases in crops. The system uses a **Raspberry Pi 5** as its central computing unit, paired with the **Raspberry Pi AI HAT+** (powered by the Hailo-8L NPU at 26 TOPS) to perform real-time, on-device neural network inference without dependency on cloud services.
+This project presents the design and full-stack implementation of the **Kaizen Model**, an edge-computing-based tomato disease detection system built for continuous improvement on the Raspberry Pi 5. The system uses the **Raspberry Pi AI HAT+** (powered by the Hailo-8L NPU at 26 TOPS) to perform real-time, on-device neural network inference without dependency on cloud services.
 
-Crop imagery is captured continuously using the **Pi Camera Module 3**. Each frame is pre-processed and fed into a custom-trained deep learning model running directly on the AI HAT+. Environmental readings — temperature and relative humidity — are simultaneously collected via a **DHT22 sensor** and correlated with detection events to build a richer picture of disease conditions.
+Tomato leaf imagery is captured continuously using the **Pi Camera Module 3**. Each frame is pre-processed and fed into a custom-trained deep learning model running directly on the AI HAT+. Environmental readings - temperature and relative humidity - are simultaneously collected via a **DHT22 sensor** and correlated with detection events to build a richer picture of disease conditions.
 
-Results are persisted in a local SQLite database and made accessible through a REST API and a browser-based monitoring dashboard reachable over the local network. When a high-severity disease is detected, the system triggers automated alerts.
+Results are persisted in a local SQLite database and made accessible through a REST API and a browser-based monitoring dashboard reachable over the local network. When a high-severity tomato disease is detected, the system triggers automated alerts. The Kaizen idea in the project name reflects the intended operational pattern: the deployed edge model can be reviewed, refined, and improved over time as new field cases become available.
 
 ### Objectives
 
-- Detect common crop diseases from leaf images in real time using edge AI inference
-- Monitor environmental conditions (temperature and humidity) relevant to disease spread
-- Provide farmers with a simple, low-cost, internet-independent monitoring tool
+- Detect tomato diseases from leaf images in real time using edge AI inference
+- Monitor environmental conditions (temperature and humidity) relevant to tomato disease spread
+- Provide farmers with a simple, low-cost, internet-independent tomato monitoring tool
 - Log and export timestamped detection history for analysis and reporting
+- Support the Kaizen-style improvement cycle through stored detections and reviewable outputs
 - Evaluate the performance of the Hailo-8L NPU for agricultural computer vision tasks
 
 ### Target Diseases
 
-The initial model targets diseases from the **PlantVillage** dataset, including but not limited to:
+The initial model targets tomato diseases from the **PlantVillage** dataset, including but not limited to:
 
-| Crop | Disease |
+| Tomato Focus | Disease |
 |------|---------|
-| Tomato | Late Blight, Early Blight, Leaf Mould, Septoria Leaf Spot |
-| Potato | Late Blight, Early Blight |
-| Maize | Common Rust, Northern Leaf Blight, Grey Leaf Spot |
-| Pepper | Bacterial Spot |
-| Apple | Scab, Black Rot, Cedar Apple Rust |
+| Tomato | Late Blight, Early Blight, Leaf Mould, Septoria Leaf Spot, Bacterial Spot |
 
 ---
 
 ## 2. System Architecture
 
-The system is structured in four horizontal layers: hardware, core services, data, and presentation. The Hailo-8L accelerator communicates with the Raspberry Pi over a dedicated **PCIe Gen 3** interface, providing high-bandwidth, low-latency tensor offloading.
+The system is structured in four horizontal layers: hardware, core services, data, and presentation. The Hailo-8L accelerator communicates with the Raspberry Pi over a dedicated **PCIe Gen 3** interface, providing high-bandwidth, low-latency tensor offloading for tomato disease inference.
 
 ```mermaid
 graph TB
@@ -359,7 +356,7 @@ iot-crop-disease-detection/
 
 ## 7. Disease Detection Pipeline
 
-Each captured frame passes through a five-stage pipeline before a result is committed to the database.
+Each captured tomato leaf frame passes through a five-stage pipeline before a result is committed to the database.
 
 ```mermaid
 flowchart TD
@@ -372,7 +369,7 @@ flowchart TD
     G["Stage 5 — Correlation\nJoin with DHT22 reading\n(Temp °C, Humidity %RH)"]
     H["Stage 6 — Persistence\nWrite DetectionRecord to SQLite\nSave annotated image to disk"]
     I{"Severity ≥ High?"}
-    J["Alert Dispatcher\nSend Email / SMS notification\nwith crop and disease details"]
+    J["Alert Dispatcher\nSend Email / SMS notification\nwith tomato and disease details"]
     K["WebSocket Broadcast\nPush update to connected\ndashboard clients in real time"]
 
     A --> B
@@ -505,7 +502,7 @@ The AI HAT+ must be installed on the Raspberry Pi 5 before powering on. Hailo PC
 ### Step 1 — Clone the Repository
 
 ```bash
-git clone https://github.com/<your-username>/iot-crop-disease-detection.git
+git clone https://github.com/thetruesammyjay/iot-crop-disease-detection.git
 cd iot-crop-disease-detection
 ```
 
@@ -727,13 +724,13 @@ graph LR
 
 ## 16. Model Training
 
-The detection model is trained using the **PlantVillage** dataset and a **YOLOv8** base architecture, then compiled to Hailo's `.hef` format using the **Hailo Dataflow Compiler (DFC)**.
+The detection model is trained on tomato disease images derived from the **PlantVillage** dataset and then compiled to Hailo's `.hef` format using the **Hailo Dataflow Compiler (DFC)**.
 
 ```mermaid
 flowchart LR
-    A["PlantVillage Dataset\n87,000+ labelled images\n38 disease classes"] --> B["Data Preparation\nmodels/training/dataset_prep.py\nAugmentation, 80/10/10 split"]
-    B --> C["Model Training\nmodels/training/train.py\nYOLOv8n / YOLOv8s backbone\nPyTorch — Ultralytics"]
-    C --> D["Evaluation\nmodels/training/evaluate.py\nmAP@0.5, Precision, Recall, F1"]
+    A["Tomato Disease Dataset\nPlantVillage tomato subset\nLabelled leaf images"] --> B["Data Preparation\nmodels/training/dataset_prep.py\nAugmentation, 80/10/10 split"]
+    B --> C["Model Training\nmodels/training/train.py\nTomato-focused backbone\nPyTorch / Ultralytics"]
+    C --> D["Evaluation\nmodels/training/evaluate.py\nAccuracy, Precision, Recall, F1"]
     D --> E["ONNX Export\nultralytics model.export(format='onnx')"]
     E --> F["Hailo DFC Compilation\nmodels/training/export_to_hailo.py\nQuantisation (INT8)\nOptimised for Hailo-8L"]
     F --> G["crop_disease_detector.hef\nmodels/hailo/\nDeployed to AI HAT+"]
@@ -857,7 +854,7 @@ flowchart TD
 |------------|--------|
 | Single camera field of view | The Pi Camera Module 3 covers a fixed field of view. Multiple cameras would require a USB hub or second Pi. |
 | DHT22 sampling rate | The DHT22 has a maximum sampling rate of 0.5 Hz (one reading every 2 seconds). Rapid environmental changes may not be captured immediately. |
-| Model generalisation | The initial model is trained on PlantVillage, which uses controlled lab images. Performance may degrade on images taken in natural outdoor lighting conditions without re-training or fine-tuning. |
+| Model generalisation | The initial tomato model is trained on PlantVillage-style images, which use controlled lab conditions. Performance may degrade on images taken in natural outdoor lighting conditions without re-training or fine-tuning. |
 | SQLite concurrency | SQLite is suitable for single-node use. If concurrent write load increases significantly, migration to PostgreSQL should be considered. |
 | Alert delivery | Email and SMS alerts require at least periodic network access. They will queue locally and retry if the network is temporarily unavailable. |
 | MicroSD card longevity | Continuous high-frequency writes (raw image captures) can wear flash storage. V30/A2 rated cards are recommended, and raw frame saving should be disabled in production unless required. |
