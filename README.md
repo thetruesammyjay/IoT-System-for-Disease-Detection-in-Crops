@@ -868,7 +868,7 @@ This project is submitted as a final year project for the degree of Bachelor of 
 ```
 MIT License
 
-Copyright (c) 2026 [Your Full Name]
+Copyright (c) 2026 sammyjayisthename Inc
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
