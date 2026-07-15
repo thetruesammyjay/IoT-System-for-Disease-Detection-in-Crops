@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173f35">
+  <title>TomatoGuard | Edge Monitor</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
+  <script defer src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="TomatoGuard dashboard">
+      <span class="brand-mark" aria-hidden="true">T</span>
+      <span>
+        <strong>TomatoGuard</strong>
+        <small>Edge disease monitor</small>
+      </span>
+    </a>
+    <div class="connection" aria-live="polite">
+      <span id="connection-dot" class="status-dot"></span>
+      <span id="connection-label">Connecting</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="dashboard-title">
+      <div>
+        <p class="eyebrow">Raspberry Pi field station</p>
+        <h1 id="dashboard-title">Tomato crop overview</h1>
+        <p class="hero-copy">Local disease classification and environmental readings, without a cloud dependency.</p>
+      </div>
+      <div class="control-panel" aria-label="Monitoring controls">
+        <button id="run-once" class="button button-secondary" type="button">Capture once</button>
+        <button id="monitor-toggle" class="button button-primary" type="button">Start monitoring</button>
+      </div>
+    </section>
+
+    <div id="error-banner" class="error-banner" role="alert" hidden></div>
+
+    <section class="stats-grid" aria-label="System summary">
+      <article class="stat-card">
+        <span class="stat-label">Monitoring</span>
+        <strong id="monitoring-state" class="stat-value">Unknown</strong>
+        <span id="monitoring-detail" class="stat-detail">Waiting for service</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Temperature</span>
+        <strong id="temperature" class="stat-value">--</strong>
+        <span class="stat-detail">Degrees Celsius</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Humidity</span>
+        <strong id="humidity" class="stat-value">--</strong>
+        <span class="stat-detail">Relative humidity</span>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">Stored records</span>
+        <strong id="record-count" class="stat-value">--</strong>
+        <span id="cycle-count" class="stat-detail">No completed cycles</span>
+      </article>
+    </section>
+
+    <section class="content-grid">
+      <article class="panel latest-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Latest classification</p>
+            <h2 id="latest-disease">No detection yet</h2>
+          </div>
+          <span id="latest-status" class="pill pill-neutral">Waiting</span>
+        </div>
+        <div class="confidence-row">
+          <div>
+            <span class="stat-label">Confidence</span>
+            <strong id="latest-confidence" class="confidence-value">--</strong>
+          </div>
+          <div>
+            <span class="stat-label">Severity</span>
+            <strong id="latest-severity" class="confidence-value">--</strong>
+          </div>
+          <div>
+            <span class="stat-label">Inference</span>
+            <strong id="processing-time" class="confidence-value">--</strong>
+          </div>
+        </div>
+        <div id="probabilities" class="probability-list" aria-label="Class probabilities"></div>
+        <footer class="panel-footer">
+          <span id="latest-time">No capture timestamp</span>
+          <span id="model-version">Model unavailable</span>
+        </footer>
+      </article>
+
+      <article class="panel environment-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Environment</p>
+            <h2>Recent sensor trend</h2>
+          </div>
+          <span class="pill pill-live">DHT22</span>
+        </div>
+        <div class="trend-block">
+          <div class="trend-label"><span>Temperature</span><span id="temp-range">--</span></div>
+          <svg class="sparkline" viewBox="0 0 300 80" role="img" aria-label="Recent temperature trend">
+            <polyline id="temperature-line" points="" pathLength="1"></polyline>
+          </svg>
+        </div>
+        <div class="trend-block humidity-trend">
+          <div class="trend-label"><span>Humidity</span><span id="humidity-range">--</span></div>
+          <svg class="sparkline" viewBox="0 0 300 80" role="img" aria-label="Recent humidity trend">
+            <polyline id="humidity-line" points="" pathLength="1"></polyline>
+          </svg>
+        </div>
+      </article>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="panel-heading">
+        <div>
+          <p class="eyebrow">Classification log</p>
+          <h2>Recent detections</h2>
+        </div>
+        <div class="export-links">
+          <a href="/api/v1/reports/export?format=csv">Export CSV</a>
+          <a href="/api/v1/reports/export?format=json">Export JSON</a>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Time</th>
+              <th scope="col">Disease</th>
+              <th scope="col">Confidence</th>
+              <th scope="col">Status</th>
+              <th scope="col">Temperature</th>
+              <th scope="col">Humidity</th>
+            </tr>
+          </thead>
+          <tbody id="detections-body">
+            <tr><td colspan="6" class="empty-state">Waiting for classification data</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <p class="updated">Last updated <time id="last-updated">never</time>. Dashboard refreshes every 3 seconds.</p>
+  </main>
+</body>
+</html>

@@ -56,7 +56,7 @@ This is a whole-image classification project. It does not predict bounding boxes
 
 ### Current Implementation Status
 
-The Python 3.11 environment and dependency groups are managed with `uv`. The repository currently contains the agreed architecture, configuration placeholders, and test placeholders. The application services, model-training scripts, simulation adapters, and executable tests are the next implementation milestones. Commands for components that are still planned are identified as such in this README.
+The Python 3.11 environment and dependency groups are managed with `uv`. The simulation and ONNX inference pipelines, continuous monitoring service, expanded REST API, reproducible MobileNetV2 training workflow, ONNX export, and model-contract validation are implemented. Physical camera and sensor adapters, Hailo deployment, the dashboard, and alert delivery remain planned milestones.
 
 ---
 
@@ -311,7 +311,8 @@ iot-crop-disease-detection/
 │       ├── dataset_prep.py                # Dataset download, split, and augmentation
 │       ├── train.py                       # MobileNetV2 transfer-learning script
 │       ├── evaluate.py                    # Accuracy, precision, recall, F1 evaluation
-│       └── export_to_hailo.py             # ONNX → Hailo DFC compilation pipeline
+│       ├── export_onnx.py                 # Best checkpoint to validated ONNX model
+│       └── export_to_hailo.py             # Planned ONNX to Hailo DFC pipeline
 │
 ├── data/                                  # Runtime data storage (git-ignored)
 │   ├── captures/                          # Raw images from Pi Camera
@@ -550,11 +551,11 @@ uv lock --check
 uv run pytest
 ```
 
-Pytest currently reports no collected tests because the committed test modules are placeholders. This will change when the first simulation-ready pipeline is implemented.
+The test suite now exercises preprocessing, postprocessing, simulation adapters, SQLite persistence, API responses, and the complete simulated pipeline.
 
 ### Raspberry Pi Hardware Environment
 
-On the Raspberry Pi, install Picamera2, the Hailo PCIe driver, HailoRT, and the hardware-specific Python packages from their supported operating-system sources. The hardware setup scripts described in the planned project structure have not been implemented yet.
+The Pi Camera Module 3 and DHT22 adapters are implemented. Picamera2 is loaded only when `monitoring.source` is `picamera2`, while the DHT22 GPIO dependencies are loaded only when `sensor.backend` is `dht22`. This keeps desktop simulation usable on Windows. See [docs/hardware_setup.md](docs/hardware_setup.md) for Raspberry Pi OS packages, wiring, uv setup, diagnostics, and configuration.
 
 ---
 
@@ -565,14 +566,17 @@ All tunable parameters are in `config/config.yaml`:
 ```yaml
 camera:
   resolution: [1920, 1080]       # Capture resolution (width x height)
-  capture_interval_s: 5          # Seconds between detection cycles
-  rotation: 0                    # Camera rotation: 0, 90, 180, or 270
-  save_raw_frames: false         # Store every raw frame to data/captures/
+  rotation: 0                    # Rotation: 0, 90, 180, or 270
+  warmup_seconds: 2.0            # Camera exposure/white-balance warmup
+  save_captures: false           # Store captured JPEG files when true
+  capture_dir: data/captures
 
 sensor:
+  backend: simulation             # simulation or dht22
   gpio_pin: 4                    # BCM GPIO pin number for DHT22 DATA line
-  read_interval_s: 30            # Seconds between sensor polls
-  temperature_unit: "celsius"    # "celsius" or "fahrenheit"
+  use_pulseio: false             # Linux-friendly DHT bit-banging mode
+  retries: 3
+  retry_delay_s: 2.0
 
 inference:
   backend: "simulation"          # simulation, onnx, or hailo
@@ -598,6 +602,13 @@ api:
   debug: false
   cors_enabled: true
 
+monitoring:
+  enabled: true
+  source: "simulation"           # simulation or picamera2
+  capture_interval_s: 5.0
+  auto_start: false
+  stop_timeout_s: 5.0
+
 alerts:
   enabled: true
   severity_threshold: "high"     # "low", "medium", or "high"
@@ -619,105 +630,101 @@ Disease class labels and their severity ratings are defined separately in `confi
 
 ## 13. Usage
 
-The following command-line interface is the target for the first implementation milestone and is not functional yet:
+The simulation-ready command-line interface is available through `main.py`:
 
 ```bash
 uv run python main.py --init-db
 uv run python main.py --simulate
 uv run python main.py --simulate --image path/to/tomato_leaf.jpg
+uv run python main.py --check-hardware
+uv run python main.py --serve
 ```
 
 ### Available Command-Line Flags
 
 | Flag | Description |
 |------|-------------|
-| `--init-db` | Initialise or reset the SQLite database |
-| `--simulate` | Use local images, generated sensor readings, and a simulated or ONNX inference backend |
-| `--image path` | Classify one local tomato leaf image in simulation mode |
+| `--init-db` | Create any missing SQLite database tables without deleting records |
+| `--simulate` | Use a local or generated image, generated sensor readings, and deterministic simulated inference |
+| `--classify` | Classify one image using the configured or selected backend |
+| `--backend` | Select `simulation`, `onnx`, or the future `hailo` backend |
+| `--image path` | Supply a local tomato leaf image for simulation or ONNX inference |
+| `--check-hardware` | Capture one Pi Camera frame and read the physical DHT22, then release both devices |
+| `--serve` | Start the local Flask REST API |
 | `--config path/to/config.yaml` | Use an alternative config file |
-| `--no-alerts` | Disable alert dispatching for this session |
-| `--benchmark` | Run inference benchmark and exit |
-| `--capture-only` | Run camera capture without inference |
 
-### Access the Dashboard
+### Access the API
 
-From any device on the same local network, open a browser and navigate to:
+Start the server and open the health endpoint:
 
 ```
-http://<raspberry-pi-ip-address>:5000
+http://127.0.0.1:5000/api/v1/system/health
 ```
 
-Find the Pi's IP address by running `hostname -I` on the device.
+Continuous monitoring does not start automatically with the default configuration. Use `POST /api/v1/monitoring/start`, or change `monitoring.auto_start` to `true`.
 
 ---
 
 ## 14. API Reference
 
-The API is planned but not implemented yet. All endpoints will be prefixed with `/api/v1`, responses will use JSON, and timestamps will follow ISO 8601 format.
+Endpoints use the `/api/v1` prefix, responses use JSON unless CSV export is selected, and timestamps follow ISO 8601 format.
 
 ### Detections
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/detections` | Paginated list of all detection records |
+| `GET` | `/detections` | Filtered and paginated classification records |
 | `GET` | `/detections/latest` | The most recent detection result |
-| `GET` | `/detections/<int:id>` | Fetch a single detection record by ID |
-| `GET` | `/detections/<int:id>/image` | Serve the annotated detection image |
-| `DELETE` | `/detections/<int:id>` | Delete a detection record |
-
-**Query Parameters for `/detections`:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `page` | int | Page number (default: 1) |
-| `per_page` | int | Records per page (default: 20, max: 100) |
-| `disease` | string | Filter by disease label |
-| `from` | ISO date | Filter records from this date |
-| `to` | ISO date | Filter records up to this date |
+| `GET` | `/detections/<id>` | Retrieve one classification record |
 
 ### Sensors
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/sensors/latest` | Most recent DHT22 reading |
-| `GET` | `/sensors/history` | Historical readings (supports `from` / `to` params) |
+| `GET` | `/sensors/latest` | Retrieve the latest environmental reading |
+| `GET` | `/sensors/history` | Retrieve filtered and paginated sensor history |
 
-### Inference
+### Monitoring and Inference
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/inference/trigger` | Manually trigger a single detection cycle |
+| `GET` | `/monitoring/status` | Retrieve scheduler state, counters, and last error |
+| `POST` | `/monitoring/start` | Start continuous classification |
+| `POST` | `/monitoring/stop` | Stop continuous classification gracefully |
+| `POST` | `/inference/trigger` | Run one non-overlapping classification immediately |
 
 ### Reports
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/reports/export?format=csv` | Export all detections as CSV |
-| `GET` | `/reports/export?format=json` | Export all detections as JSON |
+| `GET` | `/reports/export?format=json` | Export filtered classification records as JSON |
+| `GET` | `/reports/export?format=csv` | Export filtered classification records as CSV |
 
 ### System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/system/health` | System health: CPU, memory, temperature, disk |
-| `GET` | `/system/info` | Software versions, model info, uptime |
+| `GET` | `/system/health` | Confirm that the application and database are available |
+| `GET` | `/system/info` | Retrieve software, platform, record-count, and service information |
+
+See [docs/api_reference.md](docs/api_reference.md) for query parameters and response behavior.
 
 ---
 
 ## 15. Web Dashboard
 
-The dashboard is a server-rendered web interface built with Jinja2 templates, plain JavaScript, and Chart.js. It updates in real time using WebSocket connections.
+The implemented dashboard is a server-rendered Jinja2 page with responsive CSS and plain JavaScript. It is available at `/` while the Flask application is running. The page refreshes the existing REST API every three seconds and includes monitoring controls, the latest five-class probability distribution, DHT22 trends, recent detection history, and CSV/JSON export links. All assets are local, so the dashboard works without internet access.
 
 ```mermaid
 graph LR
     subgraph Pages ["Dashboard Pages"]
-        IDX["/ — Live Monitor\nLatest detection\nLive sensor readings\nReal-time confidence feed"]
-        DET["/detections — History\nPaginated detection log\nAnnotated image viewer\nFilter by date / disease"]
-        REP["/reports — Reports\nCSV / JSON export\nDetection summary charts\nEnvironmental trend graphs"]
+        IDX["/ — Live Monitor\nLatest detection\nSensor readings\nConfidence distribution"]
+        DET["Recent history table\nTime, disease, confidence\nTemperature and humidity"]
+        REP["REST report endpoints\nCSV and JSON export\nEnvironmental trend lines"]
     end
 
     subgraph Realtime ["Real-Time Channel"]
-        SIO["WebSocket (SocketIO)\nnew_detection event\nnew_sensor_reading event\nsystem_status event"]
+        SIO["REST polling every 3 seconds\nmonitoring status\ndetections and sensor history"]
     end
 
     IDX <-->|"Live updates"| SIO
@@ -727,7 +734,7 @@ graph LR
 
 ## 16. Model Training
 
-The planned MobileNetV2 classification model will be trained on five tomato disease classes derived from the **PlantVillage** dataset and then compiled to Hailo's `.hef` format using the **Hailo Dataflow Compiler (DFC)**.
+The MobileNetV2 training workflow uses five tomato disease classes derived from the **PlantVillage** dataset. ONNX export and compilation to Hailo's `.hef` format are subsequent deployment milestones.
 
 ```mermaid
 flowchart LR
@@ -741,26 +748,28 @@ flowchart LR
 
 ### Training Requirements
 
-Training will be performed on a separate machine, preferably one with a CUDA-capable GPU. The commands below describe the intended workflow; the referenced training scripts have not been implemented yet.
+Training should be performed on a separate machine, preferably one with a CUDA-capable GPU. Run the following commands from the repository root.
 
 ```bash
 # Synchronize the training dependency set
 uv sync --extra training
 
 # Prepare dataset
-uv run python models/training/dataset_prep.py --dataset plantvillage --output data/
+uv run python -m models.training.dataset_prep --dataset-root "C:\path\to\PlantVillage"
 
 # Train the model
-uv run python models/training/train.py --architecture mobilenet_v2 --epochs 30 --batch-size 32
+uv run python -m models.training.train --epochs 30 --batch-size 32
 
-# Evaluate
-uv run python models/training/evaluate.py --checkpoint models/training/best_model.pth
+# Evaluate the held-out test manifest
+uv run python -m models.training.evaluate `
+  --checkpoint models/training/runs/baseline/best_model.pt
 
-# Export to ONNX
-uv run python models/training/train.py --export-onnx models/training/tomato_mobilenet_v2.onnx
+# Export the validated checkpoint to ONNX
+uv run python -m models.training.export_onnx `
+  --checkpoint models/training/runs/baseline/best_model.pt
 
-# Compile to Hailo HEF (requires Hailo DFC installed)
-uv run python models/training/export_to_hailo.py --onnx models/training/tomato_mobilenet_v2.onnx --output models/hailo/
+# Run ONNX inference on a local image
+uv run python main.py --classify --backend onnx --image "C:\path\to\tomato-leaf.jpg"
 ```
 
 Refer to [docs/model_training.md](docs/model_training.md) for the complete guide, including Hailo DFC installation and quantisation calibration.
@@ -769,7 +778,7 @@ Refer to [docs/model_training.md](docs/model_training.md) for the complete guide
 
 ## 17. Testing
 
-The project uses **pytest** for unit and integration testing. Test files currently exist as placeholders and do not yet contain executable tests. Hardware-dependent tests will use controlled mocks so that camera, GPIO, sensor, and inference behavior can be checked before physical hardware is available.
+The project uses **pytest** for unit and integration testing. The tests cover image preprocessing, confidence handling, simulated adapters, mocked Picamera2 and DHT22 behavior, hardware retry and cleanup paths, database persistence, dashboard delivery, API responses, and the end-to-end simulation pipeline. Physical electrical and image-quality behavior still requires validation on the Raspberry Pi.
 
 ### Run All Tests
 
@@ -865,7 +874,7 @@ flowchart TD
 
 ## 20. License
 
-This project is submitted as a final year project for the degree of Bachelor of Science in Software Engineering.
+This project is submitted as a final year project for the degree of Bachelor of Technology in Software Engineering.
 
 ```
 MIT License

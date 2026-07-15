@@ -1,0 +1,45 @@
+diseases_path: config/diseases.yaml
+
+inference:
+  backend: simulation
+  onnx_model_path: models/onnx/tomato_mobilenet_v2.onnx
+  hailo_model_path: models/hailo/tomato_classifier.hef
+  confidence_threshold: 0.70
+  input_size: [224, 224]
+  class_count: 5
+  model_version: simulation-v1
+
+database:
+  path: data/detections.db
+
+simulation:
+  seed: 2026
+  temperature_range_c: [20.0, 35.0]
+  humidity_range_pct: [45.0, 90.0]
+  generated_image_size: [640, 480]
+
+camera:
+  resolution: [1920, 1080]
+  rotation: 0
+  warmup_seconds: 2.0
+  save_captures: false
+  capture_dir: data/captures
+
+sensor:
+  backend: simulation
+  gpio_pin: 4
+  use_pulseio: false
+  retries: 3
+  retry_delay_s: 2.0
+
+api:
+  host: 127.0.0.1
+  port: 5000
+  debug: false
+
+monitoring:
+  enabled: true
+  source: simulation
+  capture_interval_s: 5.0
+  auto_start: false
+  stop_timeout_s: 5.0

@@ -43,10 +43,12 @@ package = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 addopts = "-ra --strict-markers"
 markers = [
     "hardware: requires Raspberry Pi hardware",
     "integration: exercises more than one application component",
+    "training: requires dependencies from the training extra",
 ]
 
 [tool.ruff]
@@ -56,4 +58,3 @@ extend-exclude = ["crop-disease-detection"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
-
