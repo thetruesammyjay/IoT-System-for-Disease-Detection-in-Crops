@@ -1,0 +1,34 @@
+# local external protocol workspace
+crop-disease-detection/
+source_code_analysis.md
+presentation.html
+FILE-STRUCTURE.md
+
+# env files (always ignore them!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+.venv/
+venv/
+.uv-cache/
+.uv-python/
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Microsoft Office and editor temporary files
+~$*
+~WRL*.tmp
+*.tmp
+
+# Microsoft Word documents
+*.doc
+*.docx

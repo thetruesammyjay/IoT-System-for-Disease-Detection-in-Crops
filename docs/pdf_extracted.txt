@@ -1,0 +1,217 @@
+===== PAGE 1 =====
+1  
+ 
+FEDERAL UNIVERSITY OF TECHNOLOGY, OWERRI, IMO STATE  
+SCHOOL OF INFORMATION AND COMMUNICATION TECHNOLOGY  
+DEPARTMENT  OF SOFTWARE ENGINEERING  
+ 
+UNDERGRADUATE PROJECT  FORMAT  
+ 
+Preamble  
+✓ The project  work  for the  student  should  be done  individually  or in a team  where  the 
+cost of the project is relatively high.  
+✓ Group  projects  must  be approved  by the department  before  commencement.  
+✓ Every project must have a strong technical Software Engineering presence or its 
+related components. The Software Engineering or its components could be applied to 
+develop a solution for an existing problem, etc.  
+Formatting  your  project  
+The project is  written in  the following  format:  
+1. The font  type is Times  New Roman  
+2. Font size for the main  body  of the work  is 12pts  while  font size for chapter  
+headings  is 14pts  
+3. Maintain  1.5 spacing  for the entire  work.  
+4. All specific objectives must be numbered (e.g., 1, 2….; a, b., i., ii., ….)  
+5. Center all chapter headings and chapter numbers. All other subheadings should be  
+left-justified  
+6. Preliminary  pages  should  be numbered  using  Roman  numerals  with no numbering  
+appearing on the cover page which is assumed to be page one. (see below for the  
+format  for preliminary pages)  
+7. All preliminary  page  headings  should  maintain a font size of 14pts  and centred  
+8. The project  should be  block  paragraphed  
+9. For all subheadings,  maintain  first letter  capital  letters  format  
+10. All headings should  be bold 
+11. Numbering  should  follow  the following  standard  (after  second  level  numbering  
+switch  to letters or  Roman  numerals)  
+12. Figure labelling  should follow the following format: Figure 1.1, Figure 1.2, etc for  
+chapter one and Figure 2.1, Figure 2.2 for chapter two in that order. Figure labelling  
+should  be below the figure  and centred along with the figure.  
+13. The referencing  style  is APA  version  6 and above.  
+
+===== PAGE 2 =====
+2  
+ 
+1.0 INTROUDCTION  
+1.1 Background  to the  Study  (first  letter  capital)  
+2.0 LITERATURE  REVIEW  
+2.1 Conceptual  Framework (first  level  heading)  
+    2.1.1 Responsible AI  (second  level  heading)  
+a. Unbiased  Algorithm  
+3.0 RESEARCH  METHODOLOGY  
+4.0 DESIGN  AND  IMPLEMENTATION  
+5.0 SUMMARY,  CONCLUSION  AND  RECOMMENDATION   
+ 
+ 
+ 
+ 
+ 
+Figure  1.1: DevOps Framework (Power , 2021) 
+14. Table labelling  should follow the format: Table 1.1, Table 1.2, etc for chapter one and  
+Table 2.1, Table 2.2 for chapter two in that order. Table labelling  should be above the  
+table and left -justifies. All tables should be duly referenced below the table and the  
+sources  right -justified. The table  should be  single  spaced and font size  10pt 
+Table  1.1: Break  Down  of a Project  
+ 
+CHAPTER  DESCRIPTION  
+CHAPTER  ONE  INTRODUCTION  (font  size 10pt and single  space)  
+CHAPTER  TWO  LITERATURE  REVIEW (font  type:  Times  New  Roman)  
+CHAPTER  THREE  RESEARCH  METHODOLOGY  
+CHAPTER  FOUR  DESIGN  AND  IMPLEMENTATION  
+CHAPTER  FIVE  SUMMARY,  CONCLUSION  AND  RECOMMENDATION  
+ 
+ 
+ 
+15. Follow  the latest  version  of APA  formatting  style  for your referencing  (consult  APA  
+latest  documentation)  
+16. Arrange  the work as  presented  below  
+
+
+===== PAGE 3 =====
+3  
+ 
+YOUR  PROJECT  TITLE  HERE  NOT  MORE  
+THAN  18 WORDS  
+ 
+BY 
+ 
+OKAFOR  ADAMU  ADE.  
+ 
+201947334 282 
+ 
+A PROJECT  PRESENTED  TO THE DEPARTMENT  
+OF SOFTWARE ENGINEERING, FEDERAL  
+UNIVERSITY  OF TECHNOLOGY,  OWERRI.  
+ 
+IN PARTIAL FULFILMENT FOR THE AWARD OF  
+BACHELOR OF TECHNOLOGY (B -TECH) IN  
+SOFTWARE ENGINEERING  
+ 
+ 
+MONTH,  2024  CERTIFICATION  
+I certify that this research “Your topic here not more than 18 words”  
+was carried  out by Okafor  Adamu  Ade (201947338 2) in partial  
+fulfilment  for the award  of the degree  of B-Tech  in Software 
+Engineering , of the Federal  University  of Technology ,  Owerri.  
+  _ 
+Dr. James Ebe . 
+(Project  Supervisor)      
+Date  
+Dr. C.O. Ikerionwu   
+(HOD , SOE ) Date  
+Prof.  U. F. Eze . 
+(Dean,  SICT ) Date  
+(External  Examiner)  Date  PROJECT  STRUCTUTRE  
+PRELIMINARY  PAGES  
+FRONT  COVER (for  binding)  
+I. TITLE  PAGE (the  page  number  should not show  on the  cover page)  
+II. CERTIFICATION  
+III. DEDICATION  
+IV. ACKNOWLEDGEMENT  
+V. ABSTRACT  
+VI. TABLE  OF CONTENT  
+VII. LIST  OF TABLES  
+VIII. LIST  OF FIGURES  
+ 
+ 
+Cover  and Dedication  Page s 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+===== PAGE 4 =====
+4  
+ 
+THE  BODY  OF THE  REPORT  
+ 
+ 
+CHAPTER ONE (14pt centered, all capital letters)  
+INTRODUCTION  (14pt  centered,  all capital  letters)  
+1.1 Background  to the Study (12pt,  and first letter capital)  
+The background of the work is critical and should clearly present the whole essence of  
+the research,  clearly providing  insight to  the topic.  
+1.2 Statement  of Problem  
+1.3  Objectives  of the  Study  
+1.4 Research  Questions (Optional)  
+1.5 Scope  of the Study  
+1.6 Limitations  of the Study  
+1.7 Significance  of the Study  
+1.8 Definition of terms  
+ 
+ 
+CHAPTER TWO  
+LITERATURE  REVIEW  
+(Each chapter  starts  on a fresh  page)  
+ 
+ 
+2.1 Conceptual  Framework  
+The review of related literature should start with Conceptual Framework as 2.1. Student s 
+shall discuss historical and developmental trends in the area of study and general  concepts  
+related to the  work.  It is advisable to present the student’s concept of the study with a 
+schematic diagram.  
+Amongst other things the student may wish to discuss in this chapter, the student shall 
+identify  and discuss the Theoretical Framework of the Study (this comprises concepts,  
+theories, principles or models that inspired the study), as well as the Empirical Framework  
+of the Study (Gaps from reviewed related literatures  shall form the last subsection ). The se 
+should form the section headings and assigned section numbers  accordingly : 
+2.2 Theoretical  Framework  
+2.3 Empirical  Framework  
+2.4 Summary  of Literature  Review  
+ 
+ 
+ 
+
+===== PAGE 5 =====
+5  
+ 
+ 
+CHAPTER THREE  
+RESEARCH  METHODOLOGY  
+3.1     Methodology  Adopted  
+The student identifies the methodology adopted for  the study. In addition, the student should 
+also discuss the methodology (e.g.,  SSADM, OOADM, Prototyping, Agile, etc ), stating what 
+the methodology  is all about,  why the methodology  was chosen,  the steps  involved  in the 
+methodology,  and the  benefits the  methodology has over  other  highlighted  methodologies). 
+Specific methods used should be discussed  
+ 
+CHAPTER  FOUR   
+SYSTEM DESIGN  AND  IMPLEMENTATION  
+This section  includes  all design  diagrams,  use cases , database  designs,  flow chats,  etc. 
+Design  outputs  and testing processes  are also captured here.  The system  documentation  
+should  be captured  here.  
+CHAPTER  FIVE  
+SUMMARY,  CONCLUSION  AND  RECOMMENDATIONS  
+5.1 Summary  of Findings  
+5.2 Conclusions  
+5.3 Recommendations  
+5.4 Contribution to knowledge  
+5.5 Future Work  
+REFERENCES  
+APPENDIX  
+Appendix  include s all codes,  diagrams and  tables  that exceeds a  single  page etc.  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+_________________       ________________  
+Project Coordinator                                                                    HOD, SOE  

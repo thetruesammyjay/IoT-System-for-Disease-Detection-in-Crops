@@ -301,14 +301,14 @@ iot-crop-disease-detection/
 │   │   └── crop_disease_detector.hef      # Compiled Hailo Executable Format model
 │   └── training/
 │       ├── dataset_prep.py                # Dataset download, split, and augmentation
-│       ├── train.py                       # YOLOv8 / EfficientDet training script
-│       ├── evaluate.py                    # mAP, precision, recall evaluation
+│       ├── train.py                       # MobileNetV2 transfer-learning script
+│       ├── evaluate.py                    # Accuracy, precision, recall, F1 evaluation
 │       └── export_to_hailo.py             # ONNX → Hailo DFC compilation pipeline
 │
 ├── data/                                  # Runtime data storage (git-ignored)
 │   ├── captures/                          # Raw images from Pi Camera
 │   ├── processed/                         # Preprocessed inference-ready images
-│   ├── detections/                        # Annotated output images with bounding boxes
+│   ├── detections/                        # Labelled classification output images
 │   ├── exports/                           # CSV and JSON report exports
 │   └── detections.db                      # SQLite database file
 │
@@ -325,7 +325,7 @@ iot-crop-disease-detection/
 │   └── conftest.py                        # Pytest fixtures and shared test config
 │
 ├── scripts/                               # Operational and setup scripts
-│   ├── setup_system.sh                    # One-command system setup (apt, pip, config)
+│   ├── setup_system.sh                    # One-command system setup (apt, uv, config)
 │   ├── install_hailo_sdk.sh               # Hailo PCIe driver + HailoRT installation
 │   ├── start_services.sh                  # Launch all services via systemd or directly
 │   ├── crop_disease_detection.service     # systemd unit file for auto-start on boot
@@ -345,9 +345,9 @@ iot-crop-disease-detection/
 │
 ├── .env.example                           # Environment variable template
 ├── .gitignore                             # Git ignore rules
-├── requirements.txt                       # Production Python dependencies
-├── requirements-dev.txt                   # Development and testing dependencies
-├── setup.py                               # Package installation configuration
+├── .python-version                        # Python version selected by uv
+├── pyproject.toml                         # Project metadata and dependency groups
+├── uv.lock                                # Reproducible dependency lockfile
 ├── main.py                                # Application entry point
 └── README.md                              # This file
 ```
@@ -524,13 +524,24 @@ chmod +x scripts/install_hailo_sdk.sh
 
 Refer to [docs/software_setup.md](docs/software_setup.md) for manual Hailo SDK installation steps if the script fails.
 
-### Step 4 — Python Virtual Environment
+### Step 4 — Create the uv Environment
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -r requirements.txt
+# Install uv if it is not already available
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install the declared Python version and synchronize dependencies
+uv python install 3.11
+uv sync --extra simulation
+```
+
+`uv` creates and manages `.venv` automatically. Activating the environment is optional because project commands can be executed with `uv run`. The first successful synchronization generates `uv.lock`; commit that file so development and deployment use the same resolved versions.
+
+On the Raspberry Pi, install Picamera2 and HailoRT using the supported Raspberry Pi OS packages first. These hardware libraries are not installed from PyPI. Create the uv environment with access to the operating-system Python packages, then synchronize the project dependencies:
+
+```bash
+uv venv --python /usr/bin/python3 --system-site-packages
+uv sync --no-dev --extra hardware
 ```
 
 ### Step 5 — Environment Variables
@@ -543,7 +554,7 @@ nano .env          # Fill in SMTP credentials, alert recipients, etc.
 ### Step 6 — Initialise Database
 
 ```bash
-python3 main.py --init-db
+uv run python main.py --init-db
 ```
 
 ### Step 7 — Place the Model File
@@ -622,8 +633,7 @@ chmod +x scripts/start_services.sh
 ### Start Manually
 
 ```bash
-source .venv/bin/activate
-python3 main.py
+uv run python main.py
 ```
 
 ### Available Command-Line Flags
@@ -724,15 +734,15 @@ graph LR
 
 ## 16. Model Training
 
-The detection model is trained on tomato disease images derived from the **PlantVillage** dataset and then compiled to Hailo's `.hef` format using the **Hailo Dataflow Compiler (DFC)**.
+The MobileNetV2 classification model is trained on five tomato disease classes derived from the **PlantVillage** dataset and then compiled to Hailo's `.hef` format using the **Hailo Dataflow Compiler (DFC)**.
 
 ```mermaid
 flowchart LR
     A["Tomato Disease Dataset\nPlantVillage tomato subset\nLabelled leaf images"] --> B["Data Preparation\nmodels/training/dataset_prep.py\nAugmentation, 80/10/10 split"]
-    B --> C["Model Training\nmodels/training/train.py\nTomato-focused backbone\nPyTorch / Ultralytics"]
+    B --> C["Model Training\nmodels/training/train.py\nMobileNetV2 transfer learning\nPyTorch / Torchvision"]
     C --> D["Evaluation\nmodels/training/evaluate.py\nAccuracy, Precision, Recall, F1"]
-    D --> E["ONNX Export\nultralytics model.export(format='onnx')"]
-    E --> F["Hailo DFC Compilation\nmodels/training/export_to_hailo.py\nQuantisation (INT8)\nOptimised for Hailo-8L"]
+    D --> E["ONNX Export\nFive-class MobileNetV2 model"]
+    E --> F["Hailo DFC Compilation\nmodels/training/export_to_hailo.py\nQuantisation (INT8)\nTarget installed Hailo variant"]
     F --> G["crop_disease_detector.hef\nmodels/hailo/\nDeployed to AI HAT+"]
 ```
 
@@ -741,23 +751,23 @@ flowchart LR
 Training is performed on a separate machine (not the Raspberry Pi) with a CUDA-capable GPU:
 
 ```bash
-# Install training dependencies (on training machine)
-pip install -r requirements-dev.txt
+# Synchronize the training dependency set
+uv sync --extra training
 
 # Prepare dataset
-python3 models/training/dataset_prep.py --dataset plantvillage --output data/
+uv run python models/training/dataset_prep.py --dataset plantvillage --output data/
 
 # Train the model
-python3 models/training/train.py --model yolov8n --epochs 100 --batch 32
+uv run python models/training/train.py --architecture mobilenet_v2 --epochs 30 --batch-size 32
 
 # Evaluate
-python3 models/training/evaluate.py --weights runs/train/weights/best.pt
+uv run python models/training/evaluate.py --checkpoint models/training/best_model.pth
 
 # Export to ONNX
-python3 models/training/train.py --export
+uv run python models/training/train.py --export-onnx models/training/tomato_mobilenet_v2.onnx
 
 # Compile to Hailo HEF (requires Hailo DFC installed)
-python3 models/training/export_to_hailo.py --onnx best.onnx --output models/hailo/
+uv run python models/training/export_to_hailo.py --onnx models/training/tomato_mobilenet_v2.onnx --output models/hailo/
 ```
 
 Refer to [docs/model_training.md](docs/model_training.md) for the complete guide, including Hailo DFC installation and quantisation calibration.
@@ -771,27 +781,26 @@ The project uses **pytest** for unit and integration testing. Hardware-dependent
 ### Run All Tests
 
 ```bash
-source .venv/bin/activate
-pytest tests/ -v
+uv run pytest tests/ -v
 ```
 
 ### Run by Category
 
 ```bash
 # Unit tests only
-pytest tests/unit/ -v
+uv run pytest tests/unit/ -v
 
 # Integration tests only
-pytest tests/integration/ -v
+uv run pytest tests/integration/ -v
 
 # Single test file
-pytest tests/unit/test_inference.py -v
+uv run pytest tests/unit/test_inference.py -v
 ```
 
 ### Generate Coverage Report
 
 ```bash
-pytest tests/ --cov=src --cov-report=html
+uv run pytest tests/ --cov=src --cov-report=html
 # Open htmlcov/index.html in a browser
 ```
 
@@ -803,7 +812,7 @@ graph TD
     CONF --> U1["test_camera.py\nframe capture, stream init"]
     CONF --> U2["test_dht22.py\nreading parse, error handling"]
     CONF --> U3["test_preprocessor.py\nresize, normalise, tensor shape"]
-    CONF --> U4["test_postprocessor.py\nbbox decode, NMS, label map"]
+    CONF --> U4["test_postprocessor.py\nsoftmax, confidence threshold, label map"]
     CONF --> U5["test_api.py\nendpoint status codes, JSON schema"]
     CONF --> I1["test_pipeline.py\nfull capture → infer → store cycle"]
     CONF --> I2["test_database.py\ninsert, query, pagination, retention"]
@@ -842,7 +851,7 @@ flowchart TD
     D --> E["Register systemd service\nfor auto-start on boot"]
     E --> F["Set database retention_days\nto manage disk space"]
     F --> G["Verify AI HAT+ PCIe link\nhailortcli fw-control identify"]
-    G --> H["Run benchmark script\npython3 scripts/run_benchmark.py"]
+    G --> H["Run benchmark script\nuv run python scripts/run_benchmark.py"]
     H --> I["System ready for deployment"]
 ```
 
