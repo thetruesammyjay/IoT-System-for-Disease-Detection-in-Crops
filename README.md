@@ -29,41 +29,47 @@
 
 ## 1. Project Overview
 
-This project presents the design and full-stack implementation of the **Kaizen Model**, an edge-computing-based tomato disease detection system built for continuous improvement on the Raspberry Pi 5. The system uses the **Raspberry Pi AI HAT+** (powered by the Hailo-8L NPU at 26 TOPS) to perform real-time, on-device neural network inference without dependency on cloud services.
+This project presents the design and ongoing implementation of the **Kaizen Model**, an edge-computing-based tomato disease classification system built for continuous improvement on the Raspberry Pi 5. The target platform uses a **Raspberry Pi AI HAT+** to perform on-device neural network inference without continuous dependency on cloud services. The exact Hailo accelerator variant will be confirmed on the available hardware before the model is compiled and benchmarked.
 
-Tomato leaf imagery is captured continuously using the **Pi Camera Module 3**. Each frame is pre-processed and fed into a custom-trained deep learning model running directly on the AI HAT+. Environmental readings - temperature and relative humidity - are simultaneously collected via a **DHT22 sensor** and correlated with detection events to build a richer picture of disease conditions.
+Tomato leaf imagery is captured using the **Pi Camera Module 3**. Each accepted frame is preprocessed and supplied to a five-class MobileNetV2 image-classification model. Environmental readings, specifically temperature and relative humidity, are collected through a **DHT22 sensor** and correlated with classification events to provide additional context.
 
 Results are persisted in a local SQLite database and made accessible through a REST API and a browser-based monitoring dashboard reachable over the local network. When a high-severity tomato disease is detected, the system triggers automated alerts. The Kaizen idea in the project name reflects the intended operational pattern: the deployed edge model can be reviewed, refined, and improved over time as new field cases become available.
 
 ### Objectives
 
-- Detect tomato diseases from leaf images in real time using edge AI inference
+- Classify five selected tomato diseases from leaf images using edge AI inference
 - Monitor environmental conditions (temperature and humidity) relevant to tomato disease spread
 - Provide farmers with a simple, low-cost, internet-independent tomato monitoring tool
 - Log and export timestamped detection history for analysis and reporting
 - Support the Kaizen-style improvement cycle through stored detections and reviewable outputs
-- Evaluate the performance of the Hailo-8L NPU for agricultural computer vision tasks
+- Evaluate classification quality and edge-inference performance on the installed AI HAT+
 
 ### Target Diseases
 
-The initial model targets tomato diseases from the **PlantVillage** dataset, including but not limited to:
+The initial model is limited to five tomato disease classes available in the **PlantVillage** tomato subset:
 
 | Tomato Focus | Disease |
 |------|---------|
-| Tomato | Late Blight, Early Blight, Leaf Mould, Septoria Leaf Spot, Bacterial Spot |
+| Tomato | Bacterial Spot, Early Blight, Late Blight, Leaf Mould, Septoria Leaf Spot |
+
+This is a whole-image classification project. It does not predict bounding boxes or perform object detection. A result below the configured confidence threshold is stored as `uncertain`; it is not automatically interpreted as a healthy leaf because a healthy class is not included in the initial model.
+
+### Current Implementation Status
+
+The Python 3.11 environment and dependency groups are managed with `uv`. The repository currently contains the agreed architecture, configuration placeholders, and test placeholders. The application services, model-training scripts, simulation adapters, and executable tests are the next implementation milestones. Commands for components that are still planned are identified as such in this README.
 
 ---
 
 ## 2. System Architecture
 
-The system is structured in four horizontal layers: hardware, core services, data, and presentation. The Hailo-8L accelerator communicates with the Raspberry Pi over a dedicated **PCIe Gen 3** interface, providing high-bandwidth, low-latency tensor offloading for tomato disease inference.
+The system is structured in four horizontal layers: hardware, core services, data, and presentation. The installed Hailo accelerator communicates with the Raspberry Pi over PCIe, providing low-latency tensor offloading for tomato disease inference.
 
 ```mermaid
 graph TB
     subgraph HW ["Hardware Layer"]
         CAM["Pi Camera Module 3\n(12MP, HDR, Autofocus)"]
         DHT["DHT22 Sensor\n(Temp / Humidity)"]
-        AIHAT["AI HAT+\n(Hailo-8L — 26 TOPS)"]
+        AIHAT["AI HAT+\n(Hailo accelerator)"]
         RPI["Raspberry Pi 5\n(ARM Cortex-A76 — 8GB RAM)"]
 
         CAM -->|"CSI-2 FPC"| RPI
@@ -112,7 +118,7 @@ graph TB
 | # | Component | Specification | Role in System |
 |---|-----------|---------------|----------------|
 | 1 | Raspberry Pi 5 | 8GB LPDDR4X RAM, quad-core ARM Cortex-A76 @ 2.4GHz | Central processing unit, runs all software services |
-| 2 | Raspberry Pi AI HAT+ | Hailo-8L NPU, 26 TOPS, PCIe Gen 3 | Hardware accelerator for neural network inference |
+| 2 | Raspberry Pi AI HAT+ | Installed Hailo variant to be confirmed before compilation | Hardware accelerator for neural network inference |
 | 3 | Pi Camera Module 3 | Sony IMX708, 12MP, HDR, phase-detect autofocus, 120° FoV | Primary image capture for disease detection |
 | 4 | DHT22 Sensor | ±0.5°C temperature, ±2–5% relative humidity, 0.5Hz sampling | Environmental monitoring |
 | 5 | MicroSD Card | 64GB, UHS Speed Class 3 (V30), Application Class A2 | Operating system, application storage, image archive |
@@ -233,7 +239,9 @@ graph TD
 
 ---
 
-## 6. Project File Structure
+## 6. Planned Project File Structure
+
+The following structure is the implementation target. Some paths do not exist yet.
 
 ```
 iot-crop-disease-detection/
@@ -253,7 +261,7 @@ iot-crop-disease-detection/
 │   │   ├── __init__.py
 │   │   ├── hailo_runner.py                # HailoRT SDK wrapper — loads .hef, runs inference
 │   │   ├── preprocessor.py                # Frame resize, normalise, tensor conversion
-│   │   └── postprocessor.py               # Bounding box decode, NMS, confidence filtering
+│   │   └── postprocessor.py               # Softmax, confidence filtering, class mapping
 │   │
 │   ├── database/                          # Data persistence layer
 │   │   ├── __init__.py
@@ -298,7 +306,7 @@ iot-crop-disease-detection/
 │
 ├── models/                                # AI model files
 │   ├── hailo/
-│   │   └── crop_disease_detector.hef      # Compiled Hailo Executable Format model
+│   │   └── tomato_classifier.hef           # Compiled Hailo Executable Format model
 │   └── training/
 │       ├── dataset_prep.py                # Dataset download, split, and augmentation
 │       ├── train.py                       # MobileNetV2 transfer-learning script
@@ -356,33 +364,37 @@ iot-crop-disease-detection/
 
 ## 7. Disease Detection Pipeline
 
-Each captured tomato leaf frame passes through a five-stage pipeline before a result is committed to the database.
+Each accepted tomato leaf image passes through a whole-image classification pipeline before a result is committed to the database. The same processing contract will be used by the desktop simulator, ONNX Runtime, and the Hailo hardware backend.
 
 ```mermaid
 flowchart TD
-    A(["Frame Captured\nPi Camera Module 3\n1920 × 1080 px"])
-    B["Stage 1 — Preprocessing\nResize to 640 × 640\nNormalise pixel values 0–1\nConvert to RGB tensor"]
-    C["Stage 2 — NPU Inference\nHailo-8L processes tensor\nvia HailoRT SDK\n< 10ms per frame"]
-    D{"Stage 3 — Confidence\nThreshold Check\nτ = 0.70"}
-    E["Stage 4 — Postprocessing\nDecode bounding boxes\nApply Non-Maximum Suppression\nMap class index → disease label"]
-    F["Stage 4b — No Detection\nLog frame as:\n'Healthy / No Disease Detected'"]
-    G["Stage 5 — Correlation\nJoin with DHT22 reading\n(Temp °C, Humidity %RH)"]
-    H["Stage 6 — Persistence\nWrite DetectionRecord to SQLite\nSave annotated image to disk"]
-    I{"Severity ≥ High?"}
+    A(["Image Acquired\nPi Camera or simulation folder"])
+    B["Stage 1: Quality Check\nReject unreadable or unsuitable input"]
+    C["Stage 2: Preprocessing\nResize to 224 × 224\nConvert to RGB\nApply MobileNetV2 normalisation"]
+    D["Stage 3: Classification\nProduce five class logits\nusing mock, ONNX, or Hailo backend"]
+    E["Stage 4: Postprocessing\nApply softmax\nSelect highest probability\nMap class index to disease label"]
+    F{"Confidence at least 0.70?"}
+    G["Accepted Classification\nStore predicted disease and confidence"]
+    H["Uncertain Classification\nStore result without claiming healthy"]
+    I["Stage 5: Correlation\nJoin with nearest DHT22 reading"]
+    P["Stage 6: Persistence\nWrite ClassificationRecord to SQLite"]
+    Q{"Severity is High?"}
     J["Alert Dispatcher\nSend Email / SMS notification\nwith tomato and disease details"]
     K["WebSocket Broadcast\nPush update to connected\ndashboard clients in real time"]
 
     A --> B
     B --> C
     C --> D
-    D -- "Confidence ≥ 0.70" --> E
-    D -- "Confidence < 0.70" --> F
-    E --> G
-    F --> H
-    G --> H
+    D --> E
+    E --> F
+    F -- "Yes" --> G
+    F -- "No" --> H
+    G --> I
     H --> I
-    I -- "Yes" --> J
-    I -- "No" --> K
+    I --> P
+    P --> Q
+    Q -- "Yes" --> J
+    Q -- "No" --> K
     J --> K
 ```
 
@@ -397,7 +409,7 @@ sequenceDiagram
     participant CAM as Pi Camera Module 3
     participant CS  as Camera Service
     participant PP  as Preprocessor
-    participant NPU as AI HAT+ (Hailo-8L)
+    participant NPU as AI HAT+ (Hailo NPU)
     participant POST as Postprocessor
     participant SS  as Sensor Service
     participant DB  as SQLite Database
@@ -409,10 +421,10 @@ sequenceDiagram
         CS  ->> CAM  : capture_frame()
         CAM -->> CS  : raw_image (JPEG / numpy array)
         CS  ->>  PP  : preprocess(raw_image)
-        PP  -->> CS  : normalised_tensor [1, 3, 640, 640]
+        PP  -->> CS  : normalised_tensor [1, 3, 224, 224]
         CS  ->>  NPU : infer(tensor)
-        NPU -->> POST: raw_output (logits + boxes)
-        POST -->> DB : INSERT DetectionRecord
+        NPU -->> POST: five_class_logits
+        POST -->> DB : INSERT ClassificationRecord
 
         SS  ->>  SS  : read_dht22()
         SS  ->>  DB  : INSERT SensorRecord
@@ -420,7 +432,7 @@ sequenceDiagram
 
     UI  ->> API : GET /api/v1/detections/latest
     API ->>  DB : SELECT latest record
-    DB  -->> API: DetectionRecord row
+    DB  -->> API: ClassificationRecord row
     API -->> UI : JSON response
 
     POST -->> WS : emit("new_detection", payload)
@@ -433,13 +445,15 @@ sequenceDiagram
 
 ```mermaid
 erDiagram
-    DETECTION_RECORD {
+    CLASSIFICATION_RECORD {
         INTEGER id PK
         TEXT    image_path
         TEXT    disease_label
         REAL    confidence
-        TEXT    bounding_box_json
+        TEXT    prediction_status
         INTEGER severity
+        TEXT    model_version
+        REAL    processing_time_ms
         DATETIME captured_at
         INTEGER sensor_reading_id FK
     }
@@ -453,15 +467,15 @@ erDiagram
 
     ALERT_LOG {
         INTEGER  id PK
-        INTEGER  detection_id FK
+        INTEGER  classification_record_id FK
         TEXT     alert_type
         TEXT     recipient
         TEXT     status
         DATETIME sent_at
     }
 
-    DETECTION_RECORD ||--o| SENSOR_READING : "correlates with"
-    DETECTION_RECORD ||--o{ ALERT_LOG      : "may trigger"
+    CLASSIFICATION_RECORD ||--o| SENSOR_READING : "correlates with"
+    CLASSIFICATION_RECORD ||--o{ ALERT_LOG      : "may trigger"
 ```
 
 ---
@@ -506,25 +520,7 @@ git clone https://github.com/thetruesammyjay/iot-crop-disease-detection.git
 cd iot-crop-disease-detection
 ```
 
-### Step 2 — System Dependencies
-
-```bash
-chmod +x scripts/setup_system.sh
-./scripts/setup_system.sh
-```
-
-This script installs required system packages (`libcamera`, `libopencv`, `libatlas-base-dev`, etc.) and enables the camera interface.
-
-### Step 3 — Install the Hailo SDK
-
-```bash
-chmod +x scripts/install_hailo_sdk.sh
-./scripts/install_hailo_sdk.sh
-```
-
-Refer to [docs/software_setup.md](docs/software_setup.md) for manual Hailo SDK installation steps if the script fails.
-
-### Step 4 — Create the uv Environment
+### Step 2: Create the uv Environment
 
 ```bash
 # Install uv if it is not already available
@@ -544,28 +540,21 @@ uv venv --python /usr/bin/python3 --system-site-packages
 uv sync --no-dev --extra hardware
 ```
 
-### Step 5 — Environment Variables
+The `simulation` extra installs ONNX Runtime for hardware-independent inference. Use `uv sync --extra training` on the machine used to prepare and train MobileNetV2.
+
+### Step 3: Verify the Environment
 
 ```bash
-cp .env.example .env
-nano .env          # Fill in SMTP credentials, alert recipients, etc.
+uv run python --version
+uv lock --check
+uv run pytest
 ```
 
-### Step 6 — Initialise Database
+Pytest currently reports no collected tests because the committed test modules are placeholders. This will change when the first simulation-ready pipeline is implemented.
 
-```bash
-uv run python main.py --init-db
-```
+### Raspberry Pi Hardware Environment
 
-### Step 7 — Place the Model File
-
-Copy your compiled `.hef` model file to:
-
-```
-models/hailo/crop_disease_detector.hef
-```
-
-See [Section 16 — Model Training](#16-model-training) for how to build the model, or download a pre-trained release from the repository's Releases page.
+On the Raspberry Pi, install Picamera2, the Hailo PCIe driver, HailoRT, and the hardware-specific Python packages from their supported operating-system sources. The hardware setup scripts described in the planned project structure have not been implemented yet.
 
 ---
 
@@ -586,11 +575,18 @@ sensor:
   temperature_unit: "celsius"    # "celsius" or "fahrenheit"
 
 inference:
-  model_path: "models/hailo/crop_disease_detector.hef"
-  confidence_threshold: 0.70     # Minimum confidence to accept a detection
-  iou_threshold: 0.45            # IoU threshold for Non-Maximum Suppression
-  input_size: [640, 640]         # Model input dimensions (must match training)
+  backend: "simulation"          # simulation, onnx, or hailo
+  onnx_model_path: "models/onnx/tomato_mobilenet_v2.onnx"
+  hailo_model_path: "models/hailo/tomato_classifier.hef"
+  confidence_threshold: 0.70     # Minimum confidence for an accepted class
+  input_size: [224, 224]         # MobileNetV2 input dimensions
+  class_count: 5
   device_id: 0                   # Hailo PCIe device index
+
+simulation:
+  image_directory: "data/simulation/images"
+  temperature_range_c: [20.0, 35.0]
+  humidity_range_pct: [45.0, 90.0]
 
 database:
   path: "data/detections.db"
@@ -623,17 +619,12 @@ Disease class labels and their severity ratings are defined separately in `confi
 
 ## 13. Usage
 
-### Start All Services
+The following command-line interface is the target for the first implementation milestone and is not functional yet:
 
 ```bash
-chmod +x scripts/start_services.sh
-./scripts/start_services.sh
-```
-
-### Start Manually
-
-```bash
-uv run python main.py
+uv run python main.py --init-db
+uv run python main.py --simulate
+uv run python main.py --simulate --image path/to/tomato_leaf.jpg
 ```
 
 ### Available Command-Line Flags
@@ -641,6 +632,8 @@ uv run python main.py
 | Flag | Description |
 |------|-------------|
 | `--init-db` | Initialise or reset the SQLite database |
+| `--simulate` | Use local images, generated sensor readings, and a simulated or ONNX inference backend |
+| `--image path` | Classify one local tomato leaf image in simulation mode |
 | `--config path/to/config.yaml` | Use an alternative config file |
 | `--no-alerts` | Disable alert dispatching for this session |
 | `--benchmark` | Run inference benchmark and exit |
@@ -660,7 +653,7 @@ Find the Pi's IP address by running `hostname -I` on the device.
 
 ## 14. API Reference
 
-All endpoints are prefixed with `/api/v1`. Responses are JSON. Timestamps follow ISO 8601 format.
+The API is planned but not implemented yet. All endpoints will be prefixed with `/api/v1`, responses will use JSON, and timestamps will follow ISO 8601 format.
 
 ### Detections
 
@@ -734,7 +727,7 @@ graph LR
 
 ## 16. Model Training
 
-The MobileNetV2 classification model is trained on five tomato disease classes derived from the **PlantVillage** dataset and then compiled to Hailo's `.hef` format using the **Hailo Dataflow Compiler (DFC)**.
+The planned MobileNetV2 classification model will be trained on five tomato disease classes derived from the **PlantVillage** dataset and then compiled to Hailo's `.hef` format using the **Hailo Dataflow Compiler (DFC)**.
 
 ```mermaid
 flowchart LR
@@ -743,12 +736,12 @@ flowchart LR
     C --> D["Evaluation\nmodels/training/evaluate.py\nAccuracy, Precision, Recall, F1"]
     D --> E["ONNX Export\nFive-class MobileNetV2 model"]
     E --> F["Hailo DFC Compilation\nmodels/training/export_to_hailo.py\nQuantisation (INT8)\nTarget installed Hailo variant"]
-    F --> G["crop_disease_detector.hef\nmodels/hailo/\nDeployed to AI HAT+"]
+    F --> G["tomato_classifier.hef\nmodels/hailo/\nDeployed to AI HAT+"]
 ```
 
 ### Training Requirements
 
-Training is performed on a separate machine (not the Raspberry Pi) with a CUDA-capable GPU:
+Training will be performed on a separate machine, preferably one with a CUDA-capable GPU. The commands below describe the intended workflow; the referenced training scripts have not been implemented yet.
 
 ```bash
 # Synchronize the training dependency set
@@ -776,7 +769,7 @@ Refer to [docs/model_training.md](docs/model_training.md) for the complete guide
 
 ## 17. Testing
 
-The project uses **pytest** for unit and integration testing. Hardware-dependent tests (camera, GPIO) use mocking via `unittest.mock`.
+The project uses **pytest** for unit and integration testing. Test files currently exist as placeholders and do not yet contain executable tests. Hardware-dependent tests will use controlled mocks so that camera, GPIO, sensor, and inference behavior can be checked before physical hardware is available.
 
 ### Run All Tests
 
@@ -808,7 +801,7 @@ uv run pytest tests/ --cov=src --cov-report=html
 
 ```mermaid
 graph TD
-    CONF["conftest.py\nFixtures: mock_camera, mock_dht22,\nmock_hailo_runner, test_db"]
+    CONF["conftest.py\nFixtures: mock_camera, mock_dht22,\nmock_classifier, test_db"]
     CONF --> U1["test_camera.py\nframe capture, stream init"]
     CONF --> U2["test_dht22.py\nreading parse, error handling"]
     CONF --> U3["test_preprocessor.py\nresize, normalise, tensor shape"]
@@ -822,7 +815,7 @@ graph TD
 
 ## 18. Deployment
 
-The system is designed for **standalone edge deployment** on the Raspberry Pi 5 at the point of use (farm, greenhouse, field station). No internet connection is required during operation.
+The system is designed for future **standalone edge deployment** on the Raspberry Pi 5 at the point of use, such as a farm, greenhouse, or field station. The deployment scripts and systemd service described below are planned and will only be used after the simulation, ONNX, and hardware integration stages have passed their tests.
 
 ### Register as a systemd Service
 
