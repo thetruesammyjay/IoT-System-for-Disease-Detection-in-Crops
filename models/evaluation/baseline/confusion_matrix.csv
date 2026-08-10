@@ -1,0 +1,6 @@
+Actual / Predicted,Bacterial Spot,Early Blight,Late Blight,Leaf Mould,Septoria Leaf Spot
+Bacterial Spot,206,1,1,0,4
+Early Blight,0,95,2,0,3
+Late Blight,0,0,186,1,3
+Leaf Mould,0,0,0,95,0
+Septoria Leaf Spot,0,0,1,0,176

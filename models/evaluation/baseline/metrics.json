@@ -1,0 +1,79 @@
+{
+  "accuracy": 0.979328165374677,
+  "macro_precision": 0.9808701188455009,
+  "macro_recall": 0.9789991528228951,
+  "macro_f1_score": 0.9796884848280353,
+  "test_samples": 774,
+  "per_class": {
+    "Bacterial Spot": {
+      "precision": 1.0,
+      "recall": 0.9716981132075472,
+      "f1_score": 0.9856459330143541,
+      "support": 212
+    },
+    "Early Blight": {
+      "precision": 0.9895833333333334,
+      "recall": 0.95,
+      "f1_score": 0.9693877551020408,
+      "support": 100
+    },
+    "Late Blight": {
+      "precision": 0.9789473684210527,
+      "recall": 0.9789473684210527,
+      "f1_score": 0.9789473684210527,
+      "support": 190
+    },
+    "Leaf Mould": {
+      "precision": 0.9895833333333334,
+      "recall": 1.0,
+      "f1_score": 0.9947643979057592,
+      "support": 95
+    },
+    "Septoria Leaf Spot": {
+      "precision": 0.946236559139785,
+      "recall": 0.9943502824858758,
+      "f1_score": 0.9696969696969697,
+      "support": 177
+    }
+  },
+  "confusion_matrix": [
+    [
+      206,
+      1,
+      1,
+      0,
+      4
+    ],
+    [
+      0,
+      95,
+      2,
+      0,
+      3
+    ],
+    [
+      0,
+      0,
+      186,
+      1,
+      3
+    ],
+    [
+      0,
+      0,
+      0,
+      95,
+      0
+    ],
+    [
+      0,
+      0,
+      1,
+      0,
+      176
+    ]
+  ],
+  "checkpoint": "C:\\Users\\HomePC\\Documents\\IoT-System-for-Disease-Detection-in-Crops\\models\\training\\runs\\baseline\\best_model.pt",
+  "checkpoint_epoch": 5,
+  "model_version": "tomato-mobilenetv2-v1"
+}

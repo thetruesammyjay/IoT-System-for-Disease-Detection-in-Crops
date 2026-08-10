@@ -31,6 +31,7 @@ data/
 *.pt
 *.pth
 models/onnx/
+models/training/runs/
 
 # Microsoft Office and editor temporary files
 ~$*
