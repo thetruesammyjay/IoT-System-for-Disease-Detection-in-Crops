@@ -1,0 +1,33 @@
+<mxfile host="app.diagrams.net" modified="2026-08-30T00:00:00.000Z" agent="Codex" version="24.7.17">
+  <diagram id="implemented-erd" name="Implemented Database ERD">
+    <mxGraphModel dx="1300" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="760" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Entity-Relationship Diagram of the Implemented SQLite Database" style="text;html=1;strokeColor=none;fillColor=none;fontStyle=1;fontSize=20;align=center;verticalAlign=middle;" vertex="1" parent="1"><mxGeometry x="90" y="25" width="1020" height="40" as="geometry" /></mxCell>
+
+        <mxCell id="sensor" value="SENSOR_READING" style="swimlane;html=1;rounded=0;startSize=45;fillColor=#ffffff;swimlaneFillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;fontSize=15;" vertex="1" parent="1"><mxGeometry x="90" y="130" width="390" height="400" as="geometry" /></mxCell>
+        <mxCell id="s1" value="PK  id : Integer" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="120" y="205" width="320" height="35" as="geometry" /></mxCell>
+        <mxCell id="s2" value="temperature_c : Float" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="120" y="265" width="320" height="35" as="geometry" /></mxCell>
+        <mxCell id="s3" value="humidity_pct : Float" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="120" y="325" width="320" height="35" as="geometry" /></mxCell>
+        <mxCell id="s4" value="recorded_at : DateTime" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="120" y="385" width="320" height="35" as="geometry" /></mxCell>
+
+        <mxCell id="record" value="CLASSIFICATION_RECORD" style="swimlane;html=1;rounded=0;startSize=45;fillColor=#ffffff;swimlaneFillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=15;" vertex="1" parent="1"><mxGeometry x="700" y="90" width="420" height="590" as="geometry" /></mxCell>
+        <mxCell id="r1" value="PK  id : Integer" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="160" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r2" value="image_path : Text" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="205" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r3" value="disease_label : String" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="250" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r4" value="confidence : Float" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="295" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r5" value="prediction_status : String" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="340" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r6" value="severity : String" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="385" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r7" value="probabilities_json : Text" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="430" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r8" value="model_version : String" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="475" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r9" value="processing_time_ms : Float" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="520" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r10" value="captured_at : DateTime" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="565" width="350" height="30" as="geometry" /></mxCell>
+        <mxCell id="r11" value="FK  sensor_reading_id : Integer" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=13;" vertex="1" parent="1"><mxGeometry x="730" y="610" width="350" height="30" as="geometry" /></mxCell>
+
+        <mxCell id="relationship" value="contextualises" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;startArrow=ERone;startFill=0;endArrow=ERone;endFill=0;strokeWidth=2;fontStyle=1;" edge="1" parent="1" source="sensor" target="record"><mxGeometry relative="1" as="geometry" /></mxCell>
+        <mxCell id="note" value="One classification is stored with one environmental reading" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="1"><mxGeometry x="210" y="590" width="350" height="70" as="geometry" /></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
