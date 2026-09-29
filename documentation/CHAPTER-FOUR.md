@@ -70,7 +70,7 @@ Several safeguards are visible in Figure 4.4. An image must be available and lar
 
 ### 4.2.5 Deployment Design
 
-The deployment model places each software responsibility on its intended physical node. Since Chapter Three did not include this view, a new UML deployment diagram was prepared in draw.io. The model deliberately separates the working application services from the Hailo acceleration path that is still pending.
+The deployment model places each software responsibility on its intended physical node. The model deliberately separates the working application services from the Hailo acceleration path that is still pending.
 
 [Open the editable draw.io deployment diagram](diagrams/CHAPTER-FOUR-DEPLOYMENT-DIAGRAM.drawio)
 
@@ -198,6 +198,7 @@ The Flask application provides local programmatic access to system state, monito
 | GET | `/api/v1/sensors/latest` | Returns the latest sensor reading |
 | GET | `/api/v1/sensors/history` | Lists paginated sensor history |
 | POST | `/api/v1/inference/trigger` | Runs one monitoring and inference cycle |
+| POST | `/api/v1/inference/upload` | Validates and classifies a user-selected leaf image |
 | GET | `/api/v1/monitoring/status` | Returns monitoring counters and state |
 | POST | `/api/v1/monitoring/start` | Starts continuous monitoring |
 | POST | `/api/v1/monitoring/stop` | Stops continuous monitoring |
@@ -205,11 +206,11 @@ The Flask application provides local programmatic access to system state, monito
 
 **Table 4.4: Implemented REST API Endpoints.**
 
-The endpoint set serves two purposes. Read requests expose stored evidence, while the monitoring requests allow an operator to start, stop, or trigger local acquisition. At this stage, the application has no authentication and is intended only for a trusted local network. Public exposure would require authentication, encrypted transport, and a more carefully hardened deployment.
+The endpoint set serves two purposes. Read requests expose stored evidence, while the inference and monitoring requests allow an operator to upload a leaf image, start or stop monitoring, or trigger local acquisition. Uploaded content is limited to JPEG, PNG, and WebP images. The server checks the actual image content, applies a size limit, converts valid input to RGB, and sends it through the same locked pipeline used by camera captures. At this stage, the application has no authentication and is intended only for a trusted local network. Public exposure would require authentication, encrypted transport, and a more carefully hardened deployment.
 
 ### 4.4.7 Dashboard Implementation
 
-The dashboard provides a browser-based view of system health, monitoring status, the latest disease classification, recent detection history, and temperature and humidity trends. It also includes controls for starting or stopping monitoring and triggering one immediate inference cycle. JavaScript requests the relevant REST endpoints every three seconds and updates the page without requiring a full reload.
+The dashboard provides a browser-based view of system health, monitoring status, the latest disease classification, recent detection history, and temperature and humidity trends. It also includes a leaf-inspection area where an operator can select or drag a tomato leaf photograph, preview it, and request disease analysis. The resulting disease label and confidence are shown beside the image, while the complete result is added to the latest-classification panel and detection history. Controls for starting or stopping monitoring and triggering one immediate camera cycle remain available. JavaScript requests the relevant REST endpoints every three seconds and updates the page without requiring a full reload.
 
 The current implementation uses REST polling rather than Flask-SocketIO. This decision keeps the deployed interface simple and makes the dashboard compatible with the same API used by tests and external clients. If real-time push events become necessary, WebSocket support can be introduced later without changing the database or classification pipeline.
 
@@ -220,6 +221,7 @@ The current implementation uses REST polling rather than Flask-SocketIO. This de
 | Latest result | Shows disease label, confidence, status, severity, and model version |
 | Detection table | Shows recent timestamps, predictions, sensor values, and status |
 | Environmental trends | Displays recent temperature and humidity ranges and line plots |
+| Leaf inspection | Previews and classifies an uploaded JPEG, PNG, or WebP leaf image |
 | Monitoring controls | Starts, stops, or manually triggers the monitoring service |
 
 **Table 4.5: Dashboard Components and Functions.**
@@ -318,7 +320,7 @@ Testing was performed at unit, integration, simulation, model-evaluation, and ma
 
 ### 4.6.1 Automated Test Results
 
-The recorded project test run collected 32 tests and completed with all 32 passing. The tests cover preprocessing, post-processing, camera sources, DHT22 behaviour, model metadata, ONNX inference contracts, monitoring concurrency, API responses, database persistence, dataset splitting, metrics, and integrated simulated pipeline execution.
+The recorded project test run collected 36 tests and completed with all 36 passing. The tests cover preprocessing, post-processing, camera sources, DHT22 behaviour, model metadata, ONNX inference contracts, monitoring concurrency, uploaded-image validation and classification, API responses, database persistence, dataset splitting, metrics, and integrated simulated pipeline execution.
 
 | Test area | Evidence verified | Result |
 |---|---|---|
@@ -336,11 +338,11 @@ The recorded project test run collected 32 tests and completed with all 32 passi
 | REST API and dashboard | Health, static assets, filters, pagination, export, controls, and validation | Passed |
 | Pipeline integration | Simulated image classification and database storage | Passed |
 | Metrics | Accuracy, precision, recall, F1-score, and confusion-matrix calculation | Passed |
-| **Complete suite** | **32 collected tests** | **32 passed** |
+| **Complete suite** | **36 collected tests** | **36 passed** |
 
 **Table 4.10: Automated Software Test Summary.**
 
-The 32 passing tests cover more than successful or ideal inputs. They also exercise missing records, invalid query parameters, low-confidence predictions, incorrect classifier shapes, undersized images, repeated monitoring commands, overlapping cycles, and exhausted sensor retries. Passing these checks gives reasonable confidence that the components behave consistently in the development environment, including when something goes wrong.
+The 36 passing tests cover more than successful or ideal inputs. They also exercise missing records, invalid query parameters, invalid and oversized uploads, low-confidence predictions, incorrect classifier shapes, undersized images, repeated monitoring commands, overlapping cycles, and exhausted sensor retries. Passing these checks gives reasonable confidence that the components behave consistently in the development environment, including when something goes wrong.
 
 ### 4.6.2 Simulation and Manual Functional Testing
 
@@ -402,4 +404,4 @@ The dashboard uses periodic REST polling rather than WebSocket events, and autom
 
 This chapter has shown how the proposed tomato disease detection system was turned into a working software prototype. The design work from Chapter Three was carried forward and refined into editable draw.io architecture, use case, sequence, activity, deployment, and database diagrams. The resulting application includes interchangeable camera and sensor adapters, MobileNetV2 preprocessing and ONNX inference, confidence-aware post-processing, transactional SQLite storage, continuous monitoring, a REST API, CSV and JSON reporting, and a browser dashboard.
 
-Using reproducible PlantVillage splits, the five-class MobileNetV2 model achieved 97.93 percent accuracy and a 97.97 percent macro F1-score on 774 held-out images. The recorded automated test run passed all 32 tests, and desktop simulation confirmed the complete route from image input to a stored result that can be viewed on the dashboard. What remains is physical evidence from the Pi Camera, DHT22, Raspberry Pi CPU, local network, and AI HAT+. The next sensible step is therefore a staged hardware integration: first check the peripherals, then run ONNX inference on the Pi, and finally introduce Hailo acceleration.
+Using reproducible PlantVillage splits, the five-class MobileNetV2 model achieved 97.93 percent accuracy and a 97.97 percent macro F1-score on 774 held-out images. The recorded automated test run passed all 36 tests, and desktop simulation confirmed the complete route from a camera capture or uploaded image to a stored result that can be viewed on the dashboard. What remains is physical evidence from the Pi Camera, DHT22, Raspberry Pi CPU, local network, and AI HAT+. The next sensible step is therefore a staged hardware integration: first check the peripherals, then run ONNX inference on the Pi, and finally introduce Hailo acceleration.

@@ -80,6 +80,22 @@ Runs one capture and classification synchronously. It returns HTTP 201 with the 
 
 The scheduler and manual endpoint share the same non-blocking inference lock, so two cycles cannot overlap.
 
+### `POST /inference/upload`
+
+Accepts one leaf photograph as `multipart/form-data` using the field name `image`. JPEG, PNG, and WebP images are supported, and the default maximum request size is 10 MB. The server verifies the actual image content, corrects its EXIF orientation, converts it to RGB, stores a normalized local copy, and passes it through the configured classification pipeline.
+
+The endpoint returns HTTP 201 with the stored classification and the original upload filename. It returns HTTP 400 for a missing or invalid image, HTTP 409 when another inference cycle holds the pipeline lock, HTTP 413 when the request exceeds the configured limit, HTTP 500 when classification fails, or HTTP 503 when the classification service is unavailable.
+
+PowerShell example:
+
+```powershell
+$form = @{ image = Get-Item "C:\path\to\tomato-leaf.jpg" }
+Invoke-RestMethod `
+  -Method Post `
+  -Form $form `
+  http://127.0.0.1:5000/api/v1/inference/upload
+```
+
 ## Reports
 
 ### `GET /reports/export`

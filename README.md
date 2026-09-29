@@ -53,8 +53,8 @@ The classifier does not currently include a healthy-tomato class. A low-confiden
 | Physical DHT22 adapter | Implemented, physical test pending | Includes retries, range checks, rounding, and GPIO cleanup |
 | SQLite persistence | Implemented | Saves classification and sensor records in one transaction |
 | Continuous monitoring | Implemented | Supports start, stop, manual trigger, counters, and overlap prevention |
-| REST API | Implemented | Detection, sensor, monitoring, system, and export endpoints |
-| Web dashboard | Implemented | Uses REST polling every three seconds; no WebSocket transport is implemented |
+| REST API | Implemented | Detection, upload inference, sensor, monitoring, system, and export endpoints |
+| Web dashboard | Implemented | Includes leaf-image upload and uses REST polling every three seconds |
 | CSV and JSON reports | Implemented | Supports the same disease, status, and date filters as detection queries |
 | Hailo HEF model and runtime backend | Not implemented | ONNX-to-HEF compilation and HailoRT adapter remain pending |
 | Email or SMS alerts | Not implemented | No alert dispatcher or alert-log table exists yet |
@@ -207,7 +207,7 @@ uv run ruff check main.py src tests
 uv run pytest -v
 ```
 
-The most recently recorded complete test run collected 32 tests and passed all 32.
+The most recently recorded complete test run collected 36 tests and passed all 36.
 
 ## Running the application
 
@@ -251,6 +251,12 @@ uv run python main.py --serve
 ```
 
 Open <http://127.0.0.1:5000/>. Continuous monitoring is configured but does not start automatically unless `monitoring.auto_start` is changed to `true` or the start endpoint is called.
+
+To analyze dashboard uploads with the trained model rather than simulated logits, start the server with the ONNX override:
+
+```powershell
+uv run python main.py --serve --backend onnx
+```
 
 ### Command-line options
 
@@ -301,6 +307,8 @@ api:
   host: 127.0.0.1
   port: 5000
   debug: false
+  upload_dir: data/uploads
+  max_upload_mb: 10
 
 monitoring:
   enabled: true
@@ -330,6 +338,7 @@ All JSON endpoints use the `/api/v1` prefix.
 | GET | `/api/v1/sensors/latest` | Latest environmental reading |
 | GET | `/api/v1/sensors/history` | Paginated environmental history |
 | POST | `/api/v1/inference/trigger` | Run one capture and classification cycle |
+| POST | `/api/v1/inference/upload` | Validate, store, and classify an uploaded leaf image |
 | GET | `/api/v1/monitoring/status` | Monitoring state, counters, timestamps, and latest error |
 | POST | `/api/v1/monitoring/start` | Start continuous monitoring |
 | POST | `/api/v1/monitoring/stop` | Stop continuous monitoring |
@@ -373,6 +382,7 @@ The interface displays:
 - recent detection history
 - temperature and humidity trend lines
 - latest monitoring error
+- JPEG, PNG, or WebP leaf-image selection, preview, and model analysis
 - buttons to start or stop monitoring and run one immediate cycle
 - CSV and JSON report links
 
@@ -504,7 +514,7 @@ See [`docs/hardware_setup.md`](docs/hardware_setup.md) for troubleshooting detai
 
 ## Testing
 
-The repository currently contains 32 unit and integration tests.
+The repository currently contains 36 unit and integration tests.
 
 ```powershell
 # Complete suite
@@ -538,6 +548,7 @@ The test suite covers:
 - monitoring state, idempotency, and overlap prevention
 - API validation, pagination, filtering, export, and controls
 - dashboard and static-asset delivery
+- leaf-image upload validation, size enforcement, classification, and storage
 - end-to-end simulated classification and storage
 - classification metrics and confusion-matrix calculation
 

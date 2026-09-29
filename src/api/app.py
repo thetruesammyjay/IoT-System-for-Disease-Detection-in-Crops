@@ -7,10 +7,15 @@ import io
 import json
 import platform
 import sys
+import warnings
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from flask import Flask, Response, jsonify, render_template, request
+from PIL import Image, ImageOps, UnidentifiedImageError
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from src.database.repository import ClassificationRepository
 from src.monitoring import ContinuousMonitoringService, MonitoringBusyError
@@ -18,6 +23,13 @@ from src.monitoring import ContinuousMonitoringService, MonitoringBusyError
 
 class ApiValidationError(ValueError):
     pass
+
+
+ALLOWED_UPLOAD_FORMATS = {
+    "JPEG": (".jpg", "JPEG"),
+    "PNG": (".png", "PNG"),
+    "WEBP": (".webp", "WEBP"),
+}
 
 
 def _integer_query(name: str, default: int, minimum: int, maximum: int) -> int:
@@ -64,19 +76,61 @@ def _monitoring_unavailable() -> tuple[object, int]:
     return jsonify({"error": "Continuous monitoring is not configured"}), 503
 
 
+def _decode_uploaded_image() -> tuple[Image.Image, str, str, str]:
+    uploaded = request.files.get("image")
+    if uploaded is None or not uploaded.filename:
+        raise ApiValidationError("Choose a JPEG, PNG, or WebP leaf image")
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(uploaded.stream) as source:
+                image_format = (source.format or "").upper()
+                if image_format not in ALLOWED_UPLOAD_FORMATS:
+                    raise ApiValidationError("The uploaded file must be JPEG, PNG, or WebP")
+                image = ImageOps.exif_transpose(source).convert("RGB")
+                image.load()
+    except ApiValidationError:
+        raise
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+        raise ApiValidationError("The uploaded image dimensions are too large") from exc
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ApiValidationError("The uploaded file is not a valid image") from exc
+
+    original_name = Path(uploaded.filename).name
+    suffix, save_format = ALLOWED_UPLOAD_FORMATS[image_format]
+    return image, original_name, f"{uuid4().hex}{suffix}", save_format
+
+
 def create_app(
     repository: ClassificationRepository,
     monitoring: ContinuousMonitoringService | None = None,
+    *,
+    upload_dir: str | Path = "data/uploads",
+    max_upload_bytes: int = 10 * 1024 * 1024,
 ) -> Flask:
+    if max_upload_bytes <= 0:
+        raise ValueError("max_upload_bytes must be greater than zero")
     app = Flask(__name__)
+    app.config["MAX_CONTENT_LENGTH"] = max_upload_bytes
+    resolved_upload_dir = Path(upload_dir).resolve()
 
     @app.get("/")
     def dashboard() -> str:
-        return render_template("dashboard.html")
+        return render_template(
+            "dashboard.html",
+            max_upload_bytes=max_upload_bytes,
+            max_upload_mb=f"{max_upload_bytes / (1024 * 1024):g}",
+        )
 
     @app.errorhandler(ApiValidationError)
     def validation_error(error: ApiValidationError) -> tuple[object, int]:
         return jsonify({"error": str(error)}), 400
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def upload_too_large(_error: RequestEntityTooLarge) -> tuple[object, int]:
+        size_mb = max_upload_bytes / (1024 * 1024)
+        return jsonify({"error": f"Leaf images must not exceed {size_mb:g} MB"}), 413
 
     @app.get("/api/v1/system/health")
     def health() -> tuple[object, int]:
@@ -191,6 +245,29 @@ def create_app(
         except Exception as exc:
             return jsonify({"error": f"Classification failed: {exc}"}), 500
         return jsonify(result.to_dict()), 201
+
+    @app.post("/api/v1/inference/upload")
+    def classify_uploaded_image() -> tuple[object, int]:
+        if monitoring is None:
+            return _monitoring_unavailable()
+
+        image, original_name, generated_name, save_format = _decode_uploaded_image()
+        resolved_upload_dir.mkdir(parents=True, exist_ok=True)
+        stored_path = resolved_upload_dir / generated_name
+        image.save(stored_path, format=save_format, quality=95)
+
+        try:
+            result = monitoring.classify_image(image, str(stored_path))
+        except MonitoringBusyError as exc:
+            stored_path.unlink(missing_ok=True)
+            return jsonify({"error": str(exc)}), 409
+        except Exception as exc:
+            stored_path.unlink(missing_ok=True)
+            return jsonify({"error": f"Classification failed: {exc}"}), 500
+
+        payload = result.to_dict()
+        payload["uploaded_filename"] = original_name
+        return jsonify(payload), 201
 
     @app.get("/api/v1/monitoring/status")
     def monitoring_status() -> tuple[object, int]:

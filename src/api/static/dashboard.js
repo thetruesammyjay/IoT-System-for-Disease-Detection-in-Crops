@@ -8,12 +8,21 @@ const elements = Object.fromEntries(
     "processing-time", "probabilities", "latest-time", "model-version",
     "detections-body", "monitor-toggle", "run-once", "last-updated",
     "temperature-line", "humidity-line", "temp-range", "humidity-range",
+    "leaf-upload-form", "leaf-image", "leaf-dropzone", "leaf-placeholder",
+    "leaf-preview", "leaf-file-name", "upload-status", "analyze-leaf",
+    "upload-result", "upload-disease", "upload-confidence",
   ].map((id) => [id, document.getElementById(id)])
 );
 
 let monitoringRunning = false;
 let monitoringAvailable = true;
 let refreshing = false;
+let selectedLeafFile = null;
+let leafPreviewUrl = null;
+
+const acceptedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+const maximumUploadBytes = Number(elements["leaf-image"].dataset.maxUploadBytes);
+const maximumUploadMb = elements["leaf-image"].dataset.maxUploadMb;
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, {
@@ -51,6 +60,54 @@ function formatPercent(value) {
   return `${(Number(value) * 100).toFixed(1)}%`;
 }
 
+function rejectSelectedLeaf(message) {
+  selectedLeafFile = null;
+  elements["leaf-image"].value = "";
+  if (leafPreviewUrl) URL.revokeObjectURL(leafPreviewUrl);
+  leafPreviewUrl = null;
+  elements["leaf-preview"].removeAttribute("src");
+  elements["leaf-preview"].hidden = true;
+  elements["leaf-placeholder"].hidden = false;
+  elements["leaf-file-name"].textContent = "Choose a leaf photograph";
+  elements["upload-status"].textContent = "No valid image selected";
+  elements["analyze-leaf"].disabled = true;
+  showError(message);
+}
+
+function setSelectedLeaf(file) {
+  if (!acceptedImageTypes.has(file.type)) {
+    rejectSelectedLeaf("Choose a JPEG, PNG, or WebP leaf image.");
+    return;
+  }
+  if (file.size > maximumUploadBytes) {
+    rejectSelectedLeaf(`Leaf images must not exceed ${maximumUploadMb} MB.`);
+    return;
+  }
+
+  showError("");
+  selectedLeafFile = file;
+  if (leafPreviewUrl) URL.revokeObjectURL(leafPreviewUrl);
+  leafPreviewUrl = URL.createObjectURL(file);
+  elements["leaf-preview"].src = leafPreviewUrl;
+  elements["leaf-preview"].hidden = false;
+  elements["leaf-placeholder"].hidden = true;
+  elements["leaf-file-name"].textContent = file.name;
+  elements["upload-status"].textContent = "Ready for analysis";
+  elements["analyze-leaf"].disabled = !monitoringAvailable;
+  elements["upload-result"].className = "inspection-result";
+  elements["upload-disease"].textContent = "Image selected";
+  elements["upload-confidence"].textContent = "Run the model to inspect this leaf.";
+}
+
+function renderUploadResult(record) {
+  const accepted = record.prediction_status === "accepted";
+  elements["upload-result"].className = `inspection-result ${accepted ? "complete" : "uncertain"}`;
+  elements["upload-disease"].textContent = record.disease_label;
+  elements["upload-confidence"].textContent = accepted
+    ? `${formatPercent(record.confidence)} confidence using ${record.model_version}.`
+    : `Result below the acceptance threshold at ${formatPercent(record.confidence)} confidence.`;
+}
+
 function renderMonitoring(status) {
   monitoringAvailable = status !== null;
   if (!status) {
@@ -60,6 +117,7 @@ function renderMonitoring(status) {
     elements["cycle-count"].textContent = "No scheduler is available";
     elements["monitor-toggle"].disabled = true;
     elements["run-once"].disabled = true;
+    elements["analyze-leaf"].disabled = true;
     return;
   }
   monitoringRunning = Boolean(status.running);
@@ -220,6 +278,63 @@ elements["monitor-toggle"].addEventListener("click", () => withDisabledButtons(a
 elements["run-once"].addEventListener("click", () => withDisabledButtons(async () => {
   await requestJson("/api/v1/inference/trigger", { method: "POST" });
 }));
+
+elements["leaf-image"].addEventListener("change", (event) => {
+  const [file] = event.target.files;
+  if (file) setSelectedLeaf(file);
+});
+
+["dragenter", "dragover"].forEach((eventName) => {
+  elements["leaf-dropzone"].addEventListener(eventName, (event) => {
+    event.preventDefault();
+    elements["leaf-dropzone"].classList.add("dragging");
+  });
+});
+
+["dragleave", "drop"].forEach((eventName) => {
+  elements["leaf-dropzone"].addEventListener(eventName, (event) => {
+    event.preventDefault();
+    elements["leaf-dropzone"].classList.remove("dragging");
+  });
+});
+
+elements["leaf-dropzone"].addEventListener("drop", (event) => {
+  const [file] = event.dataTransfer.files;
+  if (file) setSelectedLeaf(file);
+});
+
+elements["leaf-upload-form"].addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!selectedLeafFile) {
+    showError("Choose a leaf image before starting the analysis.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("image", selectedLeafFile, selectedLeafFile.name);
+  elements["analyze-leaf"].disabled = true;
+  elements["analyze-leaf"].textContent = "Analyzing...";
+  elements["upload-status"].textContent = "Running the disease model";
+  showError("");
+
+  try {
+    const result = await requestJson("/api/v1/inference/upload", {
+      method: "POST",
+      body: formData,
+    });
+    renderUploadResult(result);
+    renderLatest(result);
+    elements["upload-status"].textContent = "Analysis complete";
+    await refreshDashboard();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Leaf analysis failed";
+    showError(message);
+    elements["upload-status"].textContent = "Analysis did not complete";
+  } finally {
+    elements["analyze-leaf"].disabled = !monitoringAvailable;
+    elements["analyze-leaf"].textContent = "Analyze leaf";
+  }
+});
 
 refreshDashboard();
 window.setInterval(refreshDashboard, 3000);

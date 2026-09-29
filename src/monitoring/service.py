@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import Event, Lock, Thread
 from time import monotonic
 from typing import Protocol
+
+from PIL import Image
 
 from src.domain import CapturedImage, StoredClassification
 
@@ -121,6 +124,17 @@ class ContinuousMonitoringService:
     def run_once(self) -> StoredClassification:
         """Capture and classify one image, rejecting concurrent execution."""
 
+        return self._run_cycle(self.image_source.capture)
+
+    def classify_image(self, image: Image.Image, image_path: str) -> StoredClassification:
+        """Classify a supplied image through the shared, non-overlapping pipeline."""
+
+        captured = CapturedImage(image=image, image_path=image_path)
+        return self._run_cycle(lambda: captured)
+
+    def _run_cycle(self, capture: Callable[[], CapturedImage]) -> StoredClassification:
+        """Execute one captured or supplied image as a monitored classification cycle."""
+
         if not self._cycle_lock.acquire(blocking=False):
             with self._state_lock:
                 self._cycles_skipped += 1
@@ -131,7 +145,7 @@ class ContinuousMonitoringService:
             self._last_started_at = datetime.now(UTC)
             self._last_error = None
         try:
-            captured = self.image_source.capture()
+            captured = capture()
             result = self.pipeline.run(captured.image, captured.image_path)
         except Exception as exc:
             with self._state_lock:

@@ -61,6 +61,52 @@
       </article>
     </section>
 
+    <section class="panel inspection-panel" aria-labelledby="leaf-inspection-title">
+      <div class="inspection-copy">
+        <p class="eyebrow">Leaf inspection</p>
+        <h2 id="leaf-inspection-title">Analyze a tomato leaf image</h2>
+        <p>Select a clear photograph containing one tomato leaf. The image stays on this device and is evaluated by the configured five-class model.</p>
+        <ul class="inspection-guidance" aria-label="Image guidance">
+          <li>Use JPEG, PNG, or WebP</li>
+          <li>Keep the leaf sharp and well lit</li>
+          <li>Maximum file size: {{ max_upload_mb }} MB</li>
+        </ul>
+      </div>
+
+      <form id="leaf-upload-form" class="inspection-form">
+        <input
+          id="leaf-image"
+          class="visually-hidden"
+          name="image"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          data-max-upload-bytes="{{ max_upload_bytes }}"
+          data-max-upload-mb="{{ max_upload_mb }}"
+          required
+        >
+        <label id="leaf-dropzone" class="leaf-dropzone" for="leaf-image">
+          <span id="leaf-placeholder" class="leaf-placeholder" aria-hidden="true">
+            <span class="leaf-outline"></span>
+          </span>
+          <img id="leaf-preview" alt="Selected tomato leaf preview" hidden>
+          <span class="dropzone-copy">
+            <strong id="leaf-file-name">Choose a leaf photograph</strong>
+            <small>Click to browse or drop an image here</small>
+          </span>
+        </label>
+        <div class="inspection-action">
+          <p id="upload-status" role="status" aria-live="polite">No image selected</p>
+          <button id="analyze-leaf" class="button button-primary" type="submit" disabled>Analyze leaf</button>
+        </div>
+      </form>
+
+      <aside id="upload-result" class="inspection-result" aria-live="polite">
+        <span class="result-kicker">Inspection result</span>
+        <strong id="upload-disease">Waiting for an image</strong>
+        <span id="upload-confidence">The diagnosis will appear here.</span>
+      </aside>
+    </section>
+
     <section class="content-grid">
       <article class="panel latest-panel">
         <div class="panel-heading">

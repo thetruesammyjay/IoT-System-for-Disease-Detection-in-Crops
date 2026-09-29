@@ -62,6 +62,8 @@ class ApiConfig:
     host: str
     port: int
     debug: bool
+    upload_dir: Path
+    max_upload_mb: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +231,10 @@ def load_config(path: str | Path = "config/config.yaml") -> AppConfig:
     if capture_interval_s <= 0 or stop_timeout_s <= 0:
         raise ConfigurationError("Monitoring intervals and timeouts must be greater than zero")
 
+    max_upload_mb = float(api_data.get("max_upload_mb", 10.0))
+    if max_upload_mb <= 0:
+        raise ConfigurationError("api.max_upload_mb must be greater than zero")
+
     disease_path = _resolve(
         project_root,
         data.get("diseases_path", "config/diseases.yaml"),
@@ -289,6 +295,12 @@ def load_config(path: str | Path = "config/config.yaml") -> AppConfig:
             host=str(api_data.get("host", "127.0.0.1")),
             port=int(api_data.get("port", 5000)),
             debug=bool(api_data.get("debug", False)),
+            upload_dir=_resolve(
+                project_root,
+                api_data.get("upload_dir", "data/uploads"),
+                "api.upload_dir",
+            ),
+            max_upload_mb=max_upload_mb,
         ),
         monitoring=MonitoringConfig(
             enabled=bool(monitoring_data.get("enabled", True)),

@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from threading import Event, Thread
 
 import pytest
+from PIL import Image
 
 from src.camera.simulation import GeneratedImageSource
 from src.domain import StoredClassification
@@ -62,6 +63,19 @@ def test_monitoring_run_once_updates_status() -> None:
     assert status.cycles_failed == 0
     assert status.last_result_id == 1
     assert status.cycle_active is False
+
+
+def test_monitoring_classifies_a_supplied_image() -> None:
+    pipeline = _Pipeline()
+    service = ContinuousMonitoringService(
+        pipeline, GeneratedImageSource((64, 64)), capture_interval_s=1.0
+    )
+
+    result = service.classify_image(Image.new("RGB", (64, 64)), "upload://leaf.png")
+
+    assert result.id == 1
+    assert pipeline.calls == 1
+    assert service.status().cycles_completed == 1
 
 
 def test_monitoring_start_and_stop_are_idempotent() -> None:

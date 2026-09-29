@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from io import BytesIO
+
+from PIL import Image
 
 from src.api import create_app
 from src.camera.simulation import GeneratedImageSource
@@ -38,6 +41,32 @@ def _save_record(
     )
 
 
+def _build_monitoring(
+    repository: ClassificationRepository,
+    app_config: AppConfig,
+) -> ContinuousMonitoringService:
+    pipeline = ClassificationPipeline(
+        preprocessor=MobileNetPreprocessor(app_config.inference.input_size),
+        classifier=SimulatedClassifier(app_config.inference.class_count),
+        postprocessor=ClassificationPostprocessor(
+            app_config.diseases,
+            app_config.inference.confidence_threshold,
+            app_config.inference.model_version,
+        ),
+        sensor=SimulatedDHT22(
+            app_config.simulation.temperature_range_c,
+            app_config.simulation.humidity_range_pct,
+            seed=app_config.simulation.seed,
+        ),
+        repository=repository,
+    )
+    return ContinuousMonitoringService(
+        pipeline,
+        GeneratedImageSource(app_config.simulation.generated_image_size),
+        capture_interval_s=1.0,
+    )
+
+
 def test_health_endpoint(repository: ClassificationRepository) -> None:
     client = create_app(repository).test_client()
 
@@ -56,6 +85,7 @@ def test_dashboard_and_static_assets_are_served(repository: ClassificationReposi
 
     assert dashboard.status_code == 200
     assert "Tomato crop overview" in dashboard.get_data(as_text=True)
+    assert "Analyze a tomato leaf image" in dashboard.get_data(as_text=True)
     assert stylesheet.status_code == 200
     assert script.status_code == 200
 
@@ -138,26 +168,7 @@ def test_manual_inference_trigger_uses_monitoring_service(
     repository: ClassificationRepository,
     app_config: AppConfig,
 ) -> None:
-    pipeline = ClassificationPipeline(
-        preprocessor=MobileNetPreprocessor(app_config.inference.input_size),
-        classifier=SimulatedClassifier(app_config.inference.class_count),
-        postprocessor=ClassificationPostprocessor(
-            app_config.diseases,
-            app_config.inference.confidence_threshold,
-            app_config.inference.model_version,
-        ),
-        sensor=SimulatedDHT22(
-            app_config.simulation.temperature_range_c,
-            app_config.simulation.humidity_range_pct,
-            seed=app_config.simulation.seed,
-        ),
-        repository=repository,
-    )
-    monitoring = ContinuousMonitoringService(
-        pipeline,
-        GeneratedImageSource(app_config.simulation.generated_image_size),
-        capture_interval_s=1.0,
-    )
+    monitoring = _build_monitoring(repository, app_config)
     client = create_app(repository, monitoring).test_client()
 
     response = client.post("/api/v1/inference/trigger")
@@ -170,6 +181,73 @@ def test_manual_inference_trigger_uses_monitoring_service(
     assert start_response.status_code == 202
     assert stop_response.status_code == 200
     assert stop_response.get_json()["monitoring"]["running"] is False
+
+
+def test_leaf_image_upload_is_classified_and_stored(
+    repository: ClassificationRepository,
+    app_config: AppConfig,
+    tmp_path,
+) -> None:
+    monitoring = _build_monitoring(repository, app_config)
+    client = create_app(repository, monitoring, upload_dir=tmp_path / "uploads").test_client()
+    image_bytes = BytesIO()
+    Image.new("RGB", (96, 96), color=(48, 126, 64)).save(image_bytes, format="PNG")
+    image_bytes.seek(0)
+
+    response = client.post(
+        "/api/v1/inference/upload",
+        data={"image": (image_bytes, "tomato-leaf.png")},
+        content_type="multipart/form-data",
+    )
+    payload = response.get_json()
+
+    assert response.status_code == 201
+    assert payload["uploaded_filename"] == "tomato-leaf.png"
+    assert payload["id"] == 1
+    assert repository.count() == 1
+    assert len(list((tmp_path / "uploads").glob("*.png"))) == 1
+
+
+def test_leaf_image_upload_rejects_invalid_content(
+    repository: ClassificationRepository,
+    app_config: AppConfig,
+    tmp_path,
+) -> None:
+    monitoring = _build_monitoring(repository, app_config)
+    client = create_app(repository, monitoring, upload_dir=tmp_path / "uploads").test_client()
+
+    response = client.post(
+        "/api/v1/inference/upload",
+        data={"image": (BytesIO(b"not an image"), "leaf.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "The uploaded file is not a valid image"
+    assert repository.count() == 0
+
+
+def test_leaf_image_upload_enforces_size_limit(
+    repository: ClassificationRepository,
+    app_config: AppConfig,
+    tmp_path,
+) -> None:
+    monitoring = _build_monitoring(repository, app_config)
+    client = create_app(
+        repository,
+        monitoring,
+        upload_dir=tmp_path / "uploads",
+        max_upload_bytes=32,
+    ).test_client()
+
+    response = client.post(
+        "/api/v1/inference/upload",
+        data={"image": (BytesIO(b"x" * 128), "leaf.png")},
+        content_type="multipart/form-data",
+    )
+
+    assert response.status_code == 413
+    assert "must not exceed" in response.get_json()["error"]
 
 
 def test_monitoring_endpoints_are_unavailable_without_service(

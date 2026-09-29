@@ -223,7 +223,8 @@ def run(arguments: list[str] | None = None) -> int:
 
         if args.serve:
             if config.monitoring.enabled:
-                monitoring_pipeline = build_pipeline(config, repository, config.inference.backend)
+                server_backend = args.backend or config.inference.backend
+                monitoring_pipeline = build_pipeline(config, repository, server_backend)
                 monitoring_source = None
                 try:
                     monitoring_source = build_image_source(config)
@@ -242,7 +243,12 @@ def run(arguments: list[str] | None = None) -> int:
                     raise
                 if config.monitoring.auto_start:
                     monitoring_service.start()
-            app = create_app(repository, monitoring_service)
+            app = create_app(
+                repository,
+                monitoring_service,
+                upload_dir=config.api.upload_dir,
+                max_upload_bytes=int(config.api.max_upload_mb * 1024 * 1024),
+            )
             app.run(
                 host=config.api.host,
                 port=config.api.port,
