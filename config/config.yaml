@@ -2,7 +2,7 @@ diseases_path: config/diseases.yaml
 
 inference:
   backend: simulation
-  onnx_model_path: models/onnx/tomato_mobilenet_v2.onnx
+  onnx_model_path: models/onnx/kaizen-model-tomato_mobilenet_v2.onnx
   hailo_model_path: models/hailo/tomato_classifier.hef
   confidence_threshold: 0.70
   input_size: [224, 224]
