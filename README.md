@@ -1,8 +1,8 @@
 # Kaizen Model for Tomato Disease Detection
 
-An edge-oriented IoT application that classifies five tomato leaf diseases, records temperature and humidity, stores each result locally, and presents monitoring data through a REST API and browser dashboard.
+An edge-oriented IoT application for whole-image tomato leaf classification. It records temperature and humidity, stores each result locally, and presents monitoring data through a REST API and browser dashboard. The released six-class model recognizes five diseases and healthy tomato leaves.
 
-The project is designed for a Raspberry Pi 5 with a Pi Camera Module 3 and DHT22 sensor. Development can be completed on a normal computer because the application also provides simulated camera, sensor, and inference components. A trained MobileNetV2 model is available locally through ONNX Runtime, while Hailo AI HAT+ acceleration remains a planned deployment stage.
+The project targets a Raspberry Pi 5 with a Pi Camera Module 3 and DHT22 sensor. It can also run on a desktop with simulated camera, sensor, and inference components. The six-class MobileNetV2 model runs through ONNX Runtime and is published in [GitHub release v2.0.0](https://github.com/thetruesammyjay/IoT-System-for-Disease-Detection-in-Crops/releases/tag/v2.0.0). Hailo AI HAT+ acceleration remains unimplemented.
 
 ## Contents
 
@@ -24,29 +24,31 @@ The project is designed for a Raspberry Pi 5 with a Pi Camera Module 3 and DHT22
 
 ## Project scope
 
-The system performs whole-image classification for five PlantVillage tomato disease classes:
+The current six-class model performs whole-image classification for these PlantVillage tomato classes:
 
-| Class index | Disease | Dataset folder | Configured priority |
+| Class index | Class | Dataset folder | Configured priority |
 |---:|---|---|---|
 | 0 | Bacterial Spot | `Tomato___Bacterial_spot` | High |
 | 1 | Early Blight | `Tomato___Early_blight` | Medium |
 | 2 | Late Blight | `Tomato___Late_blight` | High |
 | 3 | Leaf Mould | `Tomato___Leaf_Mold` | Medium |
 | 4 | Septoria Leaf Spot | `Tomato___Septoria_leaf_spot` | Medium |
+| 5 | Healthy Tomato Leaf | `Tomato___healthy` | None |
 
-The configured priority is intended for future alert handling. It is not a measurement of lesion area, biological disease stage, or crop loss.
+The five-class model remains available as release [v1.0.0](https://github.com/thetruesammyjay/IoT-System-for-Disease-Detection-in-Crops/releases/tag/v1.0.0). The default `config/config.yaml` uses simulated five-class inference; `config/config-six-class.yaml` selects the released six-class ONNX model.
 
-The classifier does not currently include a healthy-tomato class. A low-confidence result is stored as `uncertain`, but an unfamiliar image may still be assigned to one of the five disease classes. Inputs should therefore contain one clear, predominant tomato leaf, and predictions should be treated as decision support rather than a replacement for expert diagnosis.
+The configured severity is an alert priority, not a measurement of lesion area, biological disease stage, or crop loss. The classifier has no leaf-versus-non-leaf detector or dedicated unknown class. A low-confidence result is marked `uncertain`, but other unfamiliar images—including non-leaf objects—may still be assigned one of the six classes. Use clear tomato-leaf images and treat predictions as decision support rather than expert diagnosis.
 
 ## Current implementation status
 
 | Component | Status | Notes |
 |---|---|---|
-| Five-class MobileNetV2 training | Implemented | Reproducible PlantVillage manifests and transfer-learning workflow |
-| Test-set evaluation | Implemented | Accuracy, macro metrics, per-class metrics, predictions, and confusion matrix |
-| ONNX export and validation | Implemented | Model metadata and SHA-256 contract validation included |
-| ONNX Runtime inference | Implemented | Tested with labelled local images on the development computer |
-| Simulated inference | Implemented | Deterministic five-class logits for software-only testing |
+| Five-class MobileNetV2 baseline | Implemented and released | v1.0.0; five disease classes |
+| Six-class MobileNetV2 model | Implemented and released | v2.0.0; five diseases plus Healthy Tomato Leaf |
+| Training and test-set evaluation | Implemented | Reproducible manifests, per-class metrics, predictions, and confusion matrices |
+| ONNX export and runtime validation | Implemented | Model metadata, SHA-256 contract checks, and PyTorch/ONNX parity check |
+| ONNX Runtime inference | Implemented | Five- and six-class configurations are supported |
+| Simulated inference | Implemented | Class count follows the selected configuration |
 | Generated and local-image sources | Implemented | Support desktop simulation and labelled-image testing |
 | Pi Camera Module 3 adapter | Implemented, physical test pending | Uses Picamera2 and supports rotation, warm-up, saving, and cleanup |
 | Simulated DHT22 | Implemented | Repeatable temperature and humidity values |
@@ -62,27 +64,30 @@ The classifier does not currently include a healthy-tomato class. A low-confiden
 
 ## Model results
 
-The five-class dataset was validated, deduplicated by SHA-256 content hash, and split with seed 42. Eight duplicate Late Blight files were removed before the split, leaving 7,751 valid unique images.
+The current six-class dataset was validated, deduplicated by SHA-256 content hash, and split with seed 42. The class-stratified split contains 7,472 training images, 932 validation images, and 932 held-out test images.
 
-| Disease | Training | Validation | Test |
+| Class | Training | Validation | Test |
 |---|---:|---:|---:|
 | Bacterial Spot | 1,703 | 212 | 212 |
 | Early Blight | 800 | 100 | 100 |
 | Late Blight | 1,521 | 190 | 190 |
 | Leaf Mould | 762 | 95 | 95 |
 | Septoria Leaf Spot | 1,417 | 177 | 177 |
-| **Total** | **6,203** | **774** | **774** |
+| Healthy Tomato Leaf | 1,269 | 158 | 158 |
+| **Total** | **7,472** | **932** | **932** |
 
-The selected baseline checkpoint was produced at epoch 5 and evaluated on the held-out 774-image test set.
+The selected six-class checkpoint is from epoch 6. Its held-out test results are:
 
 | Metric | Result |
 |---|---:|
-| Accuracy | 97.93% |
-| Macro precision | 98.09% |
-| Macro recall | 97.90% |
-| Macro F1-score | 97.97% |
+| Accuracy | 99.14% |
+| Macro precision | 99.20% |
+| Macro recall | 98.96% |
+| Macro F1-score | 99.07% |
+| Healthy Tomato Leaf precision | 98.75% |
+| Healthy Tomato Leaf recall | 100.00% |
 
-Evaluation artefacts are committed under [`models/evaluation/baseline`](models/evaluation/baseline). These results apply to the controlled PlantVillage test set and do not yet establish performance on field photographs.
+The model correctly recognized all 158 healthy leaves in the test split; two diseased leaves were also predicted as healthy. The earlier five-class baseline scored 97.93% accuracy and 97.97% macro F1 on its separate 774-image PlantVillage test split. Both results come from controlled PlantVillage images and do not establish performance on field photographs. The v2.0.0 release notes include the six-class test summary.
 
 ## System architecture
 
@@ -125,7 +130,7 @@ One monitoring cycle performs the following operations:
 
 1. Capture or load an RGB image.
 2. Convert it to RGB, resize it to 224 by 224 pixels, and apply ImageNet normalisation.
-3. Run the selected five-class inference backend.
+3. Run the selected inference backend with the configured five- or six-class model.
 4. Apply softmax and compare the highest probability with the 0.70 confidence threshold.
 5. Read and validate temperature and humidity.
 6. Save the classification and sensor reading in one SQLite transaction.
@@ -136,8 +141,10 @@ One monitoring cycle performs the following operations:
 ```text
 .
 ├── config/
-│   ├── config.yaml                 # Runtime application settings
-│   ├── diseases.yaml               # Five classes and configured priorities
+│   ├── config.yaml                 # Default simulated five-class settings
+│   ├── config-six-class.yaml       # Six-class ONNX runtime settings
+│   ├── diseases.yaml               # Five disease classes
+│   ├── diseases-six-class.yaml     # Five diseases and Healthy Tomato Leaf
 │   └── logging.yaml
 ├── docs/
 │   ├── api_reference.md
@@ -149,11 +156,14 @@ One monitoring cycle performs the following operations:
 │   ├── CHAPTER-TWO.md
 │   ├── CHAPTER-THREE(NEW).md
 │   ├── CHAPTER-FOUR.md
+│   ├── CHAPTER-FIVE.md
+│   ├── FULL.md
+│   ├── APPENDIX.md
 │   ├── diagrams/                   # Editable draw.io sources
 │   └── figures/                    # Chapter Four PNG figures
 ├── models/
-│   ├── evaluation/baseline/        # Metrics, predictions, and confusion matrix
-│   ├── onnx/                       # Local ONNX model and metadata; git-ignored
+│   ├── evaluation/baseline/        # Five-class baseline metrics and predictions
+│   ├── onnx/                       # Downloaded ONNX model and metadata; git-ignored
 │   └── training/                   # Dataset, training, evaluation, and export code
 ├── src/
 │   ├── api/                        # Flask API, dashboard template, CSS, and JavaScript
@@ -207,7 +217,7 @@ uv run ruff check main.py src tests
 uv run pytest -v
 ```
 
-The most recently recorded complete test run collected 36 tests and passed all 36.
+The repository includes unit and integration tests. Run them with the commands below after installing the development dependencies.
 
 ## Running the application
 
@@ -225,38 +235,47 @@ uv run python main.py --simulate
 
 This uses a generated image, deterministic simulated inference, simulated temperature and humidity, and the configured SQLite database.
 
-### Classify a local image with the trained ONNX model
+### Download and run the six-class model
 
-The following files must exist locally because `models/onnx/` is git-ignored:
+The ONNX files are distributed through [GitHub release v2.0.0](https://github.com/thetruesammyjay/IoT-System-for-Disease-Detection-in-Crops/releases/tag/v2.0.0) and are not stored in Git. Download both release assets into `models/onnx/`:
 
-```text
-models/onnx/tomato_mobilenet_v2.onnx
-models/onnx/tomato_mobilenet_v2.metadata.json
-```
+- `kaizen-model-tomato_mobilenet_v2_six_class.onnx`
+- `kaizen-model-tomato_mobilenet_v2_six_class.metadata.json`
 
-Run classification with:
+PowerShell download commands:
 
 ```powershell
-uv run python main.py --classify `
-  --backend onnx `
-  --image "C:\path\to\tomato-leaf.jpg"
+New-Item -ItemType Directory -Force models/onnx | Out-Null
+$releaseUrl = "https://github.com/thetruesammyjay/IoT-System-for-Disease-Detection-in-Crops/releases/download/v2.0.0"
+Invoke-WebRequest -Uri "$releaseUrl/kaizen-model-tomato_mobilenet_v2_six_class.onnx" -OutFile "models/onnx/kaizen-model-tomato_mobilenet_v2_six_class.onnx"
+Invoke-WebRequest -Uri "$releaseUrl/kaizen-model-tomato_mobilenet_v2_six_class.metadata.json" -OutFile "models/onnx/kaizen-model-tomato_mobilenet_v2_six_class.metadata.json"
 ```
 
-The metadata contract verifies the model hash, class order, input dimensions, input name, and output name before inference.
+The metadata sidecar is required. The application checks the model hash, class order, input dimensions, and tensor names before inference.
 
-### Start the API and dashboard
+Start the six-class API and dashboard from PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe main.py --config config/config-six-class.yaml --serve
+```
+
+Open <http://127.0.0.1:5000/>. The server uses ONNX inference for image uploads and monitoring. Continuous monitoring does not start automatically; start it from the dashboard or the API unless `monitoring.auto_start` is enabled in the config.
+
+To classify a local image with the six-class model:
+
+```powershell
+.\.venv\Scripts\python.exe main.py --config config/config-six-class.yaml --classify --image "C:\path\to\tomato-leaf.jpg"
+```
+
+### Run the default simulation
+
+The default `config/config.yaml` uses simulated five-class inference, camera input, and sensor readings. It does not require an ONNX model:
 
 ```powershell
 uv run python main.py --serve
 ```
 
-Open <http://127.0.0.1:5000/>. Continuous monitoring is configured but does not start automatically unless `monitoring.auto_start` is changed to `true` or the start endpoint is called.
-
-To analyze dashboard uploads with the trained model rather than simulated logits, start the server with the ONNX override:
-
-```powershell
-uv run python main.py --serve --backend onnx
-```
+Open <http://127.0.0.1:5000/> to use the dashboard. You can also run one generated-image simulation with `uv run python main.py --simulate`.
 
 ### Command-line options
 
@@ -275,48 +294,14 @@ uv run python main.py --serve --backend onnx
 
 ## Configuration
 
-Runtime settings are loaded from [`config/config.yaml`](config/config.yaml), while class metadata is loaded from [`config/diseases.yaml`](config/diseases.yaml).
+Select the configuration that matches the model and input backends you want to run:
 
-The committed configuration defaults to full desktop simulation:
+| Configuration | Inference | Classes | Class metadata |
+|---|---|---:|---|
+| [`config/config.yaml`](config/config.yaml) | Simulated | 5 disease classes | [`config/diseases.yaml`](config/diseases.yaml) |
+| [`config/config-six-class.yaml`](config/config-six-class.yaml) | ONNX Runtime | 5 diseases and Healthy Tomato Leaf | [`config/diseases-six-class.yaml`](config/diseases-six-class.yaml) |
 
-```yaml
-inference:
-  backend: simulation
-  onnx_model_path: models/onnx/tomato_mobilenet_v2.onnx
-  hailo_model_path: models/hailo/tomato_classifier.hef
-  confidence_threshold: 0.70
-  input_size: [224, 224]
-  class_count: 5
-  model_version: simulation-v1
-
-camera:
-  resolution: [1920, 1080]
-  rotation: 0
-  warmup_seconds: 2.0
-  save_captures: false
-  capture_dir: data/captures
-
-sensor:
-  backend: simulation
-  gpio_pin: 4
-  use_pulseio: false
-  retries: 3
-  retry_delay_s: 2.0
-
-api:
-  host: 127.0.0.1
-  port: 5000
-  debug: false
-  upload_dir: data/uploads
-  max_upload_mb: 10
-
-monitoring:
-  enabled: true
-  source: simulation
-  capture_interval_s: 5.0
-  auto_start: false
-  stop_timeout_s: 5.0
-```
+Both configurations use simulated sensors and image sources by default. The six-class config expects the v2.0.0 ONNX model and its metadata sidecar under `models/onnx/`. Runtime settings include the confidence threshold, model input size, database path, camera settings, sensor backend, API address, and monitoring interval.
 
 Supported values are:
 
@@ -378,7 +363,7 @@ The interface displays:
 - API connection status
 - monitoring state and cycle counters
 - latest disease label, confidence, status, severity, and model version
-- five-class probability distribution
+- configured class-probability distribution (five or six classes)
 - recent detection history
 - temperature and humidity trend lines
 - latest monitoring error
@@ -396,58 +381,62 @@ Install the training dependencies:
 uv sync --extra simulation --extra training
 ```
 
-### Prepare the five PlantVillage classes
+The current released model uses six PlantVillage classes. The five-class workflow remains available for reproducing the v1.0.0 baseline; see [`docs/model_training.md`](docs/model_training.md) for that workflow.
+
+### Prepare the six-class dataset
 
 ```powershell
 uv run python -m models.training.dataset_prep `
   --dataset-root data/raw/PlantVillage `
-  --output-dir data/processed/tomato_5class `
+  --output-dir data/processed/tomato_6class `
+  --config config/config-six-class.yaml `
   --seed 42
 ```
 
-The command validates images, removes duplicate content, and creates `train.csv`, `validation.csv`, `test.csv`, `class_to_index.json`, and `metadata.json` without copying the source image files.
+The source dataset is not included in Git. The preparation command validates images, removes duplicate content, and writes train, validation, and test manifests without copying the source images. Keep the source dataset at the same path while using those manifests.
 
-### Train MobileNetV2 on CPU
+### Train MobileNetV2
 
 ```powershell
 uv run python -m models.training.train `
-  --data-dir data/processed/tomato_5class `
-  --output-dir models/training/runs/baseline `
+  --data-dir data/processed/tomato_6class `
+  --output-dir models/training/runs/six_class `
   --epochs 30 `
   --batch-size 8 `
   --workers 0 `
   --device cpu `
-  --seed 42
+  --seed 42 `
+  --model-version tomato-mobilenetv2-v2-six-class
 ```
 
-Training writes the best checkpoint and history artefacts under the selected run directory. Training runs and `.pt` checkpoints are git-ignored.
+The released v2.0.0 checkpoint was selected at epoch 6 by validation macro F1. Training writes the best checkpoint and history under the run directory. Training checkpoints and run history are local artifacts and are git-ignored.
 
-### Evaluate the held-out test set
+### Evaluate the held-out test split
 
 ```powershell
 uv run python -m models.training.evaluate `
-  --checkpoint models/training/runs/baseline/best_model.pt `
-  --data-dir data/processed/tomato_5class `
-  --output-dir models/evaluation/baseline `
+  --checkpoint models/training/runs/six_class/best_model.pt `
+  --data-dir data/processed/tomato_6class `
+  --output-dir models/evaluation/six_class `
   --batch-size 8 `
   --workers 0 `
   --device cpu
 ```
 
-Evaluation produces `metrics.json`, `predictions.csv`, `confusion_matrix.csv`, and `confusion_matrix.png`.
+Evaluation produces `metrics.json`, `predictions.csv`, `confusion_matrix.csv`, and `confusion_matrix.png`. The held-out six-class split contains 932 images and yielded 99.14% accuracy and 99.07% macro F1. Do not use the test split for checkpoint selection.
 
-### Export the checkpoint to ONNX
+### Export the selected checkpoint to ONNX
 
 ```powershell
 uv run python -m models.training.export_onnx `
-  --checkpoint models/training/runs/baseline/best_model.pt `
-  --output models/onnx/tomato_mobilenet_v2.onnx `
+  --checkpoint models/training/runs/six_class/best_model.pt `
+  --output models/onnx/kaizen-model-tomato_mobilenet_v2_six_class.onnx `
   --opset 17
 ```
 
-The export command also writes `tomato_mobilenet_v2.metadata.json` and verifies the ONNX model through ONNX Runtime by default.
+The exporter writes a metadata sidecar beside the ONNX file, checks the graph, and compares ONNX Runtime output with the PyTorch checkpoint by default. The ONNX model and metadata sidecar are the two assets in [GitHub release v2.0.0](https://github.com/thetruesammyjay/IoT-System-for-Disease-Detection-in-Crops/releases/tag/v2.0.0).
 
-See [`docs/model_training.md`](docs/model_training.md) for the longer training guide.
+See [`docs/model_training.md`](docs/model_training.md) for additional dataset and training details for the five-class baseline.
 
 ## Raspberry Pi hardware setup
 
@@ -502,10 +491,10 @@ Then run:
 uv run python main.py --check-hardware
 ```
 
-After the camera and DHT22 work reliably, copy the ONNX model and metadata to `models/onnx/`, change `inference.backend` to `onnx`, and start the server:
+After the camera and DHT22 work reliably, copy the ONNX model and metadata to `models/onnx/` and start the server with the matching configuration. For the six-class release, use:
 
 ```bash
-uv run python main.py --serve
+uv run python main.py --config config/config-six-class.yaml --serve
 ```
 
 To access the dashboard from another device on the same trusted network, change `api.host` to `0.0.0.0`, restart the server, and open `http://<raspberry-pi-address>:5000/`.
@@ -514,7 +503,7 @@ See [`docs/hardware_setup.md`](docs/hardware_setup.md) for troubleshooting detai
 
 ## Testing
 
-The repository currently contains 36 unit and integration tests.
+The repository includes unit and integration tests for the application and its adapters.
 
 ```powershell
 # Complete suite
@@ -562,6 +551,9 @@ Academic chapters:
 - [`documentation/CHAPTER-TWO.md`](documentation/CHAPTER-TWO.md)
 - [`documentation/CHAPTER-THREE(NEW).md`](<documentation/CHAPTER-THREE(NEW).md>)
 - [`documentation/CHAPTER-FOUR.md`](documentation/CHAPTER-FOUR.md)
+- [`documentation/CHAPTER-FIVE.md`](documentation/CHAPTER-FIVE.md)
+- [`documentation/FULL.md`](documentation/FULL.md)
+- [`documentation/APPENDIX.md`](documentation/APPENDIX.md)
 
 Technical guides:
 
@@ -574,9 +566,9 @@ Editable Chapter Four diagrams are stored under `documentation/diagrams`, with P
 
 ## Known limitations and remaining work
 
-- The classifier has five disease classes and no healthy or unknown class.
-- PlantVillage images use controlled backgrounds and lighting; field generalisation has not been established.
-- The model performs whole-image classification and does not produce bounding boxes, lesion counts, or lesion-area severity.
+- The six-class model includes healthy tomato leaves but has no dedicated unknown or non-leaf class. Non-leaf inputs can still receive one of the six labels.
+- PlantVillage images use controlled backgrounds and lighting; the reported test results do not establish field generalisation.
+- The model performs whole-image classification and does not produce bounding boxes, lesion counts, or lesion-area severity. Configured severity is an alert priority, not a visual estimate of disease severity.
 - Physical Pi Camera and DHT22 validation is still pending.
 - Raspberry Pi CPU latency, resource use, thermal behaviour, and sustained monitoring have not been measured.
 - ONNX-to-HEF compilation and the HailoRT inference backend are not implemented.
@@ -585,4 +577,4 @@ Editable Chapter Four diagrams are stored under `documentation/diagrams`, with P
 - Authentication, HTTPS, service supervision, backup, retention control, and production hardening remain future work.
 - SQLite is appropriate for this single-node prototype but may not suit a future multi-device write workload.
 
-The recommended next milestone is staged Raspberry Pi integration: validate the Camera Module 3 and DHT22 first, benchmark ONNX inference on the Pi CPU second, and add Hailo acceleration only after the exact AI HAT+ hardware and software stack are confirmed.
+The next model milestone is to add a leaf-versus-non-leaf rejection step and evaluate it with representative non-leaf images. For hardware deployment, validate the Camera Module 3 and DHT22, measure ONNX inference on the Pi CPU, and consider Hailo acceleration after confirming the target AI HAT+ hardware and software stack.
