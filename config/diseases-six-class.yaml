@@ -1,0 +1,26 @@
+# Severity is a configurable alert priority, not a measurement of lesion coverage.
+classes:
+  - index: 0
+    label: Bacterial Spot
+    dataset_label: Tomato___Bacterial_spot
+    severity: high
+  - index: 1
+    label: Early Blight
+    dataset_label: Tomato___Early_blight
+    severity: medium
+  - index: 2
+    label: Late Blight
+    dataset_label: Tomato___Late_blight
+    severity: high
+  - index: 3
+    label: Leaf Mould
+    dataset_label: Tomato___Leaf_Mold
+    severity: medium
+  - index: 4
+    label: Septoria Leaf Spot
+    dataset_label: Tomato___Septoria_leaf_spot
+    severity: medium
+  - index: 5
+    label: Healthy Tomato Leaf
+    dataset_label: Tomato___healthy
+    severity: none

@@ -231,7 +231,7 @@ def prepare_dataset(
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Prepare five PlantVillage tomato classes for reproducible training"
+        description="Prepare configured PlantVillage tomato classes for reproducible training"
     )
     parser.add_argument("--dataset-root", required=True, type=Path)
     parser.add_argument("--output-dir", type=Path, default=Path("data/processed/tomato_5class"))

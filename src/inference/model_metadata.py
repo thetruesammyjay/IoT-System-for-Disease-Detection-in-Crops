@@ -76,8 +76,8 @@ class ModelMetadata:
             )
         if self.architecture != "mobilenet_v2":
             raise ModelMetadataError(f"Unsupported architecture: {self.architecture}")
-        if len(self.class_names) != 5:
-            raise ModelMetadataError("The deployed model must contain exactly five classes")
+        if len(self.class_names) < 2:
+            raise ModelMetadataError("The deployed model must contain at least two classes")
         expected_mapping = {label: index for index, label in enumerate(self.class_names)}
         if self.class_to_index != expected_mapping:
             raise ModelMetadataError("class_to_index does not match class_names order")
